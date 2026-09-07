@@ -1,21 +1,35 @@
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
+import { basename, join } from 'node:path';
 import { test } from 'node:test';
 import React from 'react';
 import { renderToString } from 'react-dom/server';
 import { CigsViewer } from 'cigs-viewer';
-import { adjacentSources, normalizeFrame } from '../dist/frames.js';
+import { adjacentSources, normalizeFrame } from '../dist/utils/frames.js';
 
 test('exports CigsViewer and ships only the renamed component module', async () => {
   const api = await import('cigs-viewer');
   assert.equal(typeof api.CigsViewer, 'function');
   assert.equal('ConfiguratorImageViewer' in api, false);
   assert.equal('CigsViwer' in api, false);
-  const files = await readdir(new URL('../dist/', import.meta.url));
-  assert.ok(files.includes('CigsViewer.js'));
-  assert.ok(files.includes('CigsViewer.d.ts'));
+  const root = new URL('../dist/', import.meta.url);
+  assert.deepEqual((await readdir(root)).sort(), [
+    'components',
+    'constants',
+    'hooks',
+    'index.d.ts',
+    'index.js',
+    'styles.css',
+    'types',
+    'utils',
+  ]);
+  const files = await readdir(root, { recursive: true });
+  assert.ok(files.includes(join('components', 'CigsViewer.js')));
+  assert.ok(files.includes(join('components', 'CigsViewer.d.ts')));
   assert.ok(
-    !files.some((file) => /^(ConfiguratorImageViewer|CigsViwer)\./.test(file))
+    !files.some((file) =>
+      /^(ConfiguratorImageViewer|CigsViwer)\./.test(basename(file))
+    )
   );
 });
 
@@ -44,7 +58,9 @@ test('ESM entry is an SSR-safe client boundary with typed exports and no applica
     'react',
     'react-dom',
   ]);
-  for (const name of await readdir(new URL('../dist/', import.meta.url))) {
+  for (const name of await readdir(new URL('../dist/', import.meta.url), {
+    recursive: true,
+  })) {
     if (!name.endsWith('.js')) continue;
     const code = await readFile(
       new URL(`../dist/${name}`, import.meta.url),
@@ -55,6 +71,17 @@ test('ESM entry is an SSR-safe client boundary with typed exports and no applica
       /(?:from|import)\s*['"](?:next|@\/|three|zustand|react-pannellum|@arcware|@epicgames)/
     );
   }
+});
+
+test('public CSS subpath still ships the source stylesheet after reorganization', async () => {
+  const manifest = JSON.parse(
+    await readFile(new URL('../package.json', import.meta.url), 'utf8')
+  );
+  assert.equal(manifest.exports['./styles.css'], './dist/styles.css');
+  assert.equal(
+    await readFile(new URL('../dist/styles.css', import.meta.url), 'utf8'),
+    await readFile(new URL('../src/styles/viewer.css', import.meta.url), 'utf8')
+  );
 });
 
 test('invalid options fail explicitly, while out-of-range indices are safely clamped', () => {

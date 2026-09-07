@@ -237,6 +237,24 @@ Props und Verhalten bleiben unveraendert.
 
 ## Entwicklung und lokale Installation
 
+### Quellcode-Struktur
+
+```text
+src/
+  index.ts                 Oeffentliche Paket-Exports (Client-Einstieg)
+  components/              CigsViewer und interne Bild-/Sequenz-Komponenten
+  constants/               Default-Kameras und UI-Beschriftungen
+  hooks/                   Pointer-/Swipe-Interaktion
+  styles/                  Viewer-Stylesheet
+  types/                   Gemeinsame TypeScript-Typen und Props
+  utils/                   Frame-Navigation, Validierung und Render-Pfade
+```
+
+Interne Module importieren einander direkt, nicht ueber den oeffentlichen
+Einstieg. `dist/` spiegelt die Modulstruktur; das Build-Skript kopiert CSS
+weiterhin nach `dist/styles.css`. Die Consumer-Imports `cigs-viewer` und
+`cigs-viewer/styles.css` bleiben unveraendert.
+
 ### Startbare Demo ohne npm-Veroeffentlichung
 
 ```bash
@@ -256,27 +274,29 @@ Bibliothek erneut `npm run build` ausfuehren bzw. die Demo neu starten.
 Der Vite-Resolver dedupliziert React fuer die lokale Paketverknuepfung.
 
 - Beide Ansichten mit allen Default-Kameras, Swipe, Buttons und Thumbnails.
-- Lackfarbe `P` und `PMV` anpassen; `B01` und `M01` bleiben konstant.
+- Editierbare Key-Value-Liste, initial mit `B: '01'`, `M: '01'`,
+  `P: '070707'` und `PMV: '100'`. Alle Keys und Values lassen sich bearbeiten;
+  ueber **+ Paar hinzufuegen** und **Loeschen** laesst sich die Liste erweitern.
+- **Konfiguration anwenden** uebernimmt die Liste in Viewer und JSX-Beispiel.
+  Unvollstaendige Paare, doppelte Keys und ungueltige Dateinamen-Tokens werden
+  sichtbar abgewiesen; die zuvor angewendete Konfiguration bleibt erhalten.
 - Einblendung der aktuellen Kamera und des passenden JSX-Beispiels.
-- Standardmaessig komplett lokale, selbst erstellte SVG-Illustrationen:
-  keine Produktassets, Credentials oder externen Render-Aufrufe erforderlich.
-- Optional einen echten HTTP(S)-Render-Service eintragen. Erst nach
-  **Render-Service verwenden** werden Anfragen an diesen Host gesendet.
-- Mit **Lokale Demo verwenden** jederzeit zurueckwechseln.
-
-Der [Demo-Mock](./examples/demo/mock-render.ts) beantwortet die vom Paket
-erzeugten `.webp`-Pfade absichtlich mit `image/svg+xml`. Das ist nur eine
-lokale Illustration der Integration, keine echte WebP-Render-Pipeline.
-Der Mock unterstuetzt `B01`, `M01`, sechsstellige Lackfarben, `PMV` von 0-100,
-`C1`-`C14` und `FHD`. Andere Pfade liefern 404.
+- Feste Bildquelle **https://cigs.elferplatz.com**, ohne URL-Eingabe oder lokale
+  Mock-Bilder. Die Demo benoetigt eine Verbindung zum Render-Service und sendet
+  die angewendeten Konfigurationscodes als Bildpfade an diesen Host.
+- Die Paket-Filter fuer Exterieur/Interieur bleiben aktiv. Konfigurationen,
+  die nach dem Filtern keine Render-Codes enthalten, zeigen einen Fehler;
+  der Editor bleibt zum Korrigieren bedienbar. Fehlende Server-Bilder werden
+  vom Viewer mit seiner Fehler-/Retry-Anzeige behandelt.
 
 ```bash
 npm run demo:build
+npm --prefix examples/demo test
 npm --prefix examples/demo run preview
 ```
 
-Auch der Preview-Server enthaelt den lokalen Mock. Das Demo-`dist` allein ist
-ohne diesen Server kein vollstaendiges statisches Mock-Deployment.
+Das Demo-`dist` kann auch statisch bereitgestellt werden; die Bilder kommen
+weiterhin ausschliesslich von der festen CIGS-Bildquelle.
 Vite kann beim SPA-Build melden, dass es `use client` ignoriert. Das betrifft
 nur das Demo-Bundle; die Client-Direktive bleibt im npm-Bibliotheksbuild erhalten.
 Dev- und Preview-Server verwenden localhost:5173 und starten bei belegtem Port

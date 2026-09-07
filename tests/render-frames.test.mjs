@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { buildViewerFrames } from '../dist/render-frames.js';
+import { buildViewerFrames } from '../dist/utils/render-frames.js';
 
 const options = {
   baseUrl: 'https://renders.example.test/assets/',

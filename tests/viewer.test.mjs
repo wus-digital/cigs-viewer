@@ -10,7 +10,7 @@ import {
   DEFAULT_EXTERIOR_CAMERAS,
   DEFAULT_INTERIOR_CAMERAS,
 } from 'cigs-viewer';
-import { ImageFrameViewer } from '../dist/ImageFrameViewer.js';
+import { ImageFrameViewer } from '../dist/components/ImageFrameViewer.js';
 
 const act = React.act ?? legacyAct;
 
