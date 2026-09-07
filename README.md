@@ -237,6 +237,54 @@ Props und Verhalten bleiben unveraendert.
 
 ## Entwicklung und lokale Installation
 
+### Startbare Demo ohne npm-Veroeffentlichung
+
+```bash
+cd cigs-viewer
+npm ci
+npm --prefix examples/demo ci
+npm run demo
+```
+
+Oeffnen: **http://localhost:5173**. Voraussetzung fuer Vite:
+Node.js 20.19+ oder 22.12+ (empfohlen: aktuelle Node-LTS-Version).
+
+Die [Demo](./examples/demo/src/main.tsx) verwendet das Paket per
+`"cigs-viewer": "file:../.."`, also ohne Registry oder Veroeffentlichung.
+`npm run demo` baut die Bibliothek vor dem Start. Nach Aenderungen an der
+Bibliothek erneut `npm run build` ausfuehren bzw. die Demo neu starten.
+Der Vite-Resolver dedupliziert React fuer die lokale Paketverknuepfung.
+
+- Beide Ansichten mit allen Default-Kameras, Swipe, Buttons und Thumbnails.
+- Lackfarbe `P` und `PMV` anpassen; `B01` und `M01` bleiben konstant.
+- Einblendung der aktuellen Kamera und des passenden JSX-Beispiels.
+- Standardmaessig komplett lokale, selbst erstellte SVG-Illustrationen:
+  keine Produktassets, Credentials oder externen Render-Aufrufe erforderlich.
+- Optional einen echten HTTP(S)-Render-Service eintragen. Erst nach
+  **Render-Service verwenden** werden Anfragen an diesen Host gesendet.
+- Mit **Lokale Demo verwenden** jederzeit zurueckwechseln.
+
+Der [Demo-Mock](./examples/demo/mock-render.ts) beantwortet die vom Paket
+erzeugten `.webp`-Pfade absichtlich mit `image/svg+xml`. Das ist nur eine
+lokale Illustration der Integration, keine echte WebP-Render-Pipeline.
+Der Mock unterstuetzt `B01`, `M01`, sechsstellige Lackfarben, `PMV` von 0-100,
+`C1`-`C14` und `FHD`. Andere Pfade liefern 404.
+
+```bash
+npm run demo:build
+npm --prefix examples/demo run preview
+```
+
+Auch der Preview-Server enthaelt den lokalen Mock. Das Demo-`dist` allein ist
+ohne diesen Server kein vollstaendiges statisches Mock-Deployment.
+Vite kann beim SPA-Build melden, dass es `use client` ignoriert. Das betrifft
+nur das Demo-Bundle; die Client-Direktive bleibt im npm-Bibliotheksbuild erhalten.
+Dev- und Preview-Server verwenden localhost:5173 und starten bei belegtem Port
+nicht auf einem anderen Port. Die Demo ist privat und wird nicht im
+npm-Tarball der Bibliothek mitgeliefert.
+
+### Bibliothek pruefen und packen
+
 ```bash
 git clone git@github.com:wus-digital/cigs-viewer.git
 cd cigs-viewer

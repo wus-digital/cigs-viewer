@@ -5,7 +5,7 @@ import nextTs from 'eslint-config-next/typescript';
 export default defineConfig([
   ...nextVitals,
   ...nextTs,
-  globalIgnores(['dist/**', 'node_modules/**']),
+  globalIgnores(['**/dist/**', '**/node_modules/**']),
   { rules: { '@next/next/no-html-link-for-pages': 'off' } },
   {
     files: ['src/**/*.tsx'],
