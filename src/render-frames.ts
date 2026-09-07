@@ -6,6 +6,10 @@ import type {
   ViewerRenderOptions,
   ViewerViewMode,
 } from './types.js';
+import {
+  DEFAULT_EXTERIOR_CAMERAS,
+  DEFAULT_INTERIOR_CAMERAS,
+} from './default-cameras.js';
 
 const defaultOmittedKeys = {
   exterior: ['AKZI', 'DHC'],
@@ -116,8 +120,8 @@ export function buildViewerFrames(options: ViewerRenderOptions): {
   const {
     configuration,
     baseUrl,
-    exteriorCameras,
-    interiorCameras,
+    exteriorCameras = DEFAULT_EXTERIOR_CAMERAS,
+    interiorCameras = DEFAULT_INTERIOR_CAMERAS,
     quality = 'FHD',
     thumbnailQuality,
     omittedConfigurationKeys,

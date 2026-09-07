@@ -9,7 +9,7 @@ export type RenderConfiguration = Readonly<
 export type RenderQuality = 'FHD' | 'WQHD' | '4K' | '4KHQ' | '8K' | '8KHQ';
 
 export interface ViewerCamera {
-  /** Exact filename camera token, e.g. C360_001. Array order defines swipe order. */
+  /** Exact filename camera token, e.g. C1. Array order defines swipe order. */
   id: string;
   label?: string;
 }
@@ -18,8 +18,10 @@ export interface ViewerRenderOptions {
   configuration: RenderConfiguration;
   /** Absolute HTTP(S) URL or root-relative directory; no query string or hash. */
   baseUrl: string;
-  exteriorCameras: readonly ViewerCamera[];
-  interiorCameras: readonly ViewerCamera[];
+  /** Defaults to C1, C2, C3, C4, C5, C9, C10. [] leaves this view empty. */
+  exteriorCameras?: readonly ViewerCamera[];
+  /** Defaults to C6, C7, C8, C11, C12, C13, C14. [] leaves this view empty. */
+  interiorCameras?: readonly ViewerCamera[];
   quality?: RenderQuality;
   /** Optional thumbnail quality, using the same configuration and camera. */
   thumbnailQuality?: RenderQuality;

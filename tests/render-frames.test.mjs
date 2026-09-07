@@ -130,8 +130,8 @@ test('rejects malformed configuration, duplicate cameras, unsafe URL tokens and 
     { configuration: { B: 'x?y' } },
     { configuration: { B: 'x#y' } },
     { configuration: { 'B/': 'GT3RS' } },
-    { exteriorCameras: undefined },
-    { interiorCameras: undefined },
+    { exteriorCameras: null },
+    { interiorCameras: null },
     { exteriorCameras: [{ id: 'C1' }, { id: 'C1' }] },
     { interiorCameras: [{ id: '' }] },
     { interiorCameras: [{ id: '../bad' }] },
@@ -146,4 +146,51 @@ test('rejects malformed configuration, duplicate cameras, unsafe URL tokens and 
       JSON.stringify(invalid)
     );
   }
+});
+
+test('omitted camera arrays build the exact default cameras in the requested order', () => {
+  const defaults = { baseUrl: '/renders', configuration: { B: 'GT3RS' } };
+  const result = buildViewerFrames(defaults);
+  const exterior = ['C1', 'C2', 'C3', 'C4', 'C5', 'C9', 'C10'];
+  const interior = ['C6', 'C7', 'C8', 'C11', 'C12', 'C13', 'C14'];
+  assert.deepEqual(
+    result.exteriorFrames.map((frame) => frame.cameraId),
+    exterior
+  );
+  assert.deepEqual(
+    result.interiorFrames.map((frame) => frame.cameraId),
+    interior
+  );
+  assert.deepEqual(
+    result.exteriorFrames.map((frame) => frame.src),
+    exterior.map((id) => `/renders/BGT3RS_${id}_PQM-FHD.webp`)
+  );
+  assert.deepEqual(
+    result.interiorFrames.map((frame) => frame.src),
+    interior.map((id) => `/renders/BGT3RS_${id}_PQM-FHD.webp`)
+  );
+  assert.deepEqual(
+    buildViewerFrames({
+      ...defaults,
+      exteriorCameras: undefined,
+      interiorCameras: undefined,
+    }),
+    result
+  );
+});
+
+test('camera overrides are independent and empty arrays do not fall back to defaults', () => {
+  const defaults = { baseUrl: '/renders', configuration: { B: 'GT3RS' } };
+  const result = buildViewerFrames({
+    ...defaults,
+    exteriorCameras: [{ id: 'CUSTOM' }],
+  });
+  assert.equal(result.exteriorFrames[0].cameraId, 'CUSTOM');
+  assert.equal(result.interiorFrames[0].cameraId, 'C6');
+  const emptyExterior = buildViewerFrames({ ...defaults, exteriorCameras: [] });
+  assert.deepEqual(emptyExterior.exteriorFrames, []);
+  assert.equal(emptyExterior.interiorFrames.length, 7);
+  const emptyInterior = buildViewerFrames({ ...defaults, interiorCameras: [] });
+  assert.deepEqual(emptyInterior.interiorFrames, []);
+  assert.equal(emptyInterior.exteriorFrames.length, 7);
 });

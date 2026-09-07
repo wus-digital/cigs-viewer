@@ -6,9 +6,22 @@ import { createRoot, hydrateRoot } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
 import { act as legacyAct } from 'react-dom/test-utils';
 import { ConfiguratorImageViewer } from 'cigs-viewer';
+import {
+  DEFAULT_EXTERIOR_CAMERAS,
+  DEFAULT_INTERIOR_CAMERAS,
+} from 'cigs-viewer';
 import { ImageFrameViewer } from '../dist/ImageFrameViewer.js';
 
 const act = React.act ?? legacyAct;
+
+test('exported default cameras cannot be mutated between viewer instances', () => {
+  assert.throws(() => {
+    DEFAULT_EXTERIOR_CAMERAS[0].id = 'CHANGED';
+  }, TypeError);
+  assert.throws(() => {
+    DEFAULT_INTERIOR_CAMERAS.push({ id: 'CHANGED' });
+  }, TypeError);
+});
 
 const dom = new JSDOM('<!doctype html><html><body></body></html>', {
   url: 'http://localhost',
@@ -391,6 +404,7 @@ async function renderConfiguration(props = {}) {
     document.body.append(container);
     root = createRoot(container);
   }
+
   await act(() =>
     root.render(
       React.createElement(ConfiguratorImageViewer, {
@@ -400,6 +414,30 @@ async function renderConfiguration(props = {}) {
     )
   );
 }
+
+test('public viewer navigates the full default camera order without camera props', async () => {
+  await renderConfiguration({
+    exteriorCameras: undefined,
+    interiorCameras: undefined,
+  });
+  for (const [mode, code, ids] of [
+    ['Exterior', exteriorCode, ['C1', 'C2', 'C3', 'C4', 'C5', 'C9', 'C10']],
+    ['Interior', interiorCode, ['C6', 'C7', 'C8', 'C11', 'C12', 'C13', 'C14']],
+  ]) {
+    await click(mode);
+    for (const id of ids) {
+      assert.equal(
+        activeImage().getAttribute('src'),
+        `/renders/${code}_${id}_PQM-FHD.webp`
+      );
+      await click('Next image');
+    }
+    assert.equal(
+      activeImage().getAttribute('src'),
+      `/renders/${code}_${ids[0]}_PQM-FHD.webp`
+    );
+  }
+});
 
 test('public API builds both camera sequences from configuration, including swiping and preloading', async () => {
   const changes = [];

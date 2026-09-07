@@ -3,13 +3,17 @@
 import { useMemo } from 'react';
 import { ImageFrameViewer } from './ImageFrameViewer.js';
 import { buildViewerFrames } from './render-frames.js';
+import {
+  DEFAULT_EXTERIOR_CAMERAS,
+  DEFAULT_INTERIOR_CAMERAS,
+} from './default-cameras.js';
 import type { ConfiguratorImageViewerProps } from './types.js';
 
 export function ConfiguratorImageViewer({
   configuration,
   baseUrl,
-  exteriorCameras,
-  interiorCameras,
+  exteriorCameras = DEFAULT_EXTERIOR_CAMERAS,
+  interiorCameras = DEFAULT_INTERIOR_CAMERAS,
   quality = 'FHD',
   thumbnailQuality,
   omittedConfigurationKeys,

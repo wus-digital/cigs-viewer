@@ -32,25 +32,11 @@ const configuration = {
   P: '070707',
 };
 
-const exteriorCameras = Array.from({ length: 120 }, (_, index) => ({
-  id: `C360_${String(index + 1).padStart(3, '0')}`,
-  label: `Exterieur ${index + 1}`,
-}));
-
-// Beispiel-IDs: durch die tatsaechlichen Kamera-IDs des Render-Service ersetzen.
-const interiorCameras = [
-  { id: 'CINT_DASH', label: 'Armaturenbrett' },
-  { id: 'CINT_SEAT', label: 'Sitze' },
-  { id: 'CINT_DOOR', label: 'Tuerverkleidung' },
-];
-
 export function Preview() {
   return (
     <ConfiguratorImageViewer
       baseUrl='https://renders.example.com'
       configuration={configuration}
-      exteriorCameras={exteriorCameras}
-      interiorCameras={interiorCameras}
       quality='FHD'
       labels={{
         viewer: 'Fahrzeugansicht',
@@ -68,6 +54,18 @@ export function Preview() {
 Die Host-App kann ihren ENV-Wert dafuer uebergeben; das Paket liest keine
 projektspezifischen Umgebungsvariablen und verwendet keinen fest eingebauten Host.
 
+### Default-Kameras
+
+Ohne Kamera-Props gelten in genau dieser Swipe-Reihenfolge:
+
+- **Exterieur:** `C1`, `C2`, `C3`, `C4`, `C5`, `C9`, `C10`
+- **Interieur:** `C6`, `C7`, `C8`, `C11`, `C12`, `C13`, `C14`
+
+Eigene `exteriorCameras`-/`interiorCameras`-Arrays von `{ id, label? }`
+ueberschreiben die jeweilige Ansicht unabhaengig. Ein explizites `[]` laesst
+die Ansicht leer. Die unveraenderlichen Defaults sind als
+`DEFAULT_EXTERIOR_CAMERAS` und `DEFAULT_INTERIOR_CAMERAS` exportiert.
+
 ### So werden die Pfade gebaut
 
 ```text
@@ -77,8 +75,8 @@ projektspezifischen Umgebungsvariablen und verwendet keinen fest eingebauten Hos
 Fuer die obige Konfiguration entstehen automatisch beispielsweise:
 
 ```text
-https://renders.example.com/BGT3RS_M01_P070707_C360_001_PQM-FHD.webp
-https://renders.example.com/BGT3RS_M01_P070707_CINT_SEAT_PQM-FHD.webp
+https://renders.example.com/BGT3RS_M01_P070707_C1_PQM-FHD.webp
+https://renders.example.com/BGT3RS_M01_P070707_C6_PQM-FHD.webp
 ```
 
 - Die Kamera-ID ist der **vollstaendige Kamera-Token im Dateinamen**, nicht ein
@@ -101,8 +99,7 @@ https://renders.example.com/BGT3RS_M01_P070707_CINT_SEAT_PQM-FHD.webp
 Das Paket enthaelt weder Produktbilder noch einen Render-Service.
 **Das bisherige einzelne `C360INT`-Panorama wird nicht in Kamera-Einzelbilder
 konvertiert.** Fuer das neue Interieur werden reale perspektivische Renderings
-mit den uebergebenen Kamera-IDs benoetigt. Die Beispiel-IDs sind keine Zusage,
-dass solche Kameras in einem bestehenden Render-Service vorhanden sind.
+mit den konfigurierten Kamera-IDs benoetigt.
 
 ### Konfiguration aendern
 
@@ -120,6 +117,8 @@ Kameralisten ebenfalls unveraenderlich behandeln und als neue Arrays uebergeben.
 import { useState } from 'react';
 import {
   ConfiguratorImageViewer,
+  DEFAULT_EXTERIOR_CAMERAS,
+  DEFAULT_INTERIOR_CAMERAS,
   type ViewerRenderOptions,
   type ViewerViewMode,
 } from 'cigs-viewer';
@@ -128,8 +127,8 @@ import 'cigs-viewer/styles.css';
 export function ControlledPreview(props: ViewerRenderOptions) {
   const [viewMode, setViewMode] = useState<ViewerViewMode>('exterior');
   const [cameraIds, setCameraIds] = useState({
-    exterior: props.exteriorCameras[0]?.id,
-    interior: props.interiorCameras[0]?.id,
+    exterior: (props.exteriorCameras ?? DEFAULT_EXTERIOR_CAMERAS)[0]?.id,
+    interior: (props.interiorCameras ?? DEFAULT_INTERIOR_CAMERAS)[0]?.id,
   });
   const cameraId = cameraIds[viewMode];
 
@@ -164,7 +163,8 @@ Host-App kontrollierte Kamera-IDs ebenfalls aktualisieren.
 | --- | --- | --- |
 | `configuration` | erforderlich | `Readonly<Record<string, string \| number \| null \| undefined>>` |
 | `baseUrl` | erforderlich | HTTP(S)-Adresse oder Root-relatives Verzeichnis wie `/renders` |
-| `exteriorCameras`, `interiorCameras` | erforderlich | Arrays von `{ id, label? }` |
+| `exteriorCameras` | `C1, C2, C3, C4, C5, C9, C10` | Optionales Array von `{ id, label? }` |
+| `interiorCameras` | `C6, C7, C8, C11, C12, C13, C14` | Optionales Array von `{ id, label? }` |
 | `quality` | `FHD` | CIGS-Qualitaet der dargestellten Bilder und Preloads |
 | `thumbnailQuality` | - | Optionale Thumbnail-Qualitaet; ebenfalls automatisch erzeugte Pfade |
 | `omittedConfigurationKeys` | Ext: `AKZI`, `DHC`; Int: `AKZ` | Optionale Filter pro Ansicht |
@@ -226,6 +226,9 @@ Die Host-App braucht keine URL-Builder mehr. `thumbnailSrc` wird durch
 `thumbnailQuality` ersetzt. Der Komponentenname `ConfiguratorImageViewer`
 und die Navigations-Callbacks bleiben bestehen; Frames enthalten jetzt die Kamera-ID.
 
+Ab **0.2.1** sind beide Kamera-Props optional und verwenden die oben genannten
+Defaults. Bestehende explizite Kamera-Arrays behalten unveraendert ihre Wirkung.
+
 ## Entwicklung und lokale Installation
 
 ```bash
@@ -238,7 +241,7 @@ npm pack --dry-run
 npm pack
 
 # In einer separaten React-App:
-npm install /absoluter/pfad/cigs-viewer-0.2.0.tgz
+npm install /absoluter/pfad/cigs-viewer-0.2.1.tgz
 ```
 
 `npm test` baut mit TypeScript, prueft den oeffentlichen Typvertrag und fuehrt

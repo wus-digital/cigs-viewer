@@ -25,7 +25,12 @@ export const invalidQuality: ConfiguratorImageViewerProps = {
   // @ts-expect-error Only CIGS render quality tags are supported.
   quality: 'low',
 };
-// @ts-expect-error Configuration and per-view cameras are required.
+export const defaultCameras: ConfiguratorImageViewerProps = {
+  configuration: { B: 'GT3RS' },
+  baseUrl: '/renders',
+};
+
+// @ts-expect-error Configuration is required even when cameras use defaults.
 export const missingConfiguration: ConfiguratorImageViewerProps = {
   baseUrl: '/renders',
 };

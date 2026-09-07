@@ -1,6 +1,6 @@
 {
   "name": "cigs-viewer",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "React viewer generating exterior and interior image sequences from CIGS configuration and cameras.",
   "license": "UNLICENSED",
   "repository": {
