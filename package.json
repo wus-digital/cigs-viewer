@@ -1,0 +1,66 @@
+{
+  "name": "cigs-viewer",
+  "version": "0.1.0",
+  "description": "Framework-independent React image sequence viewer for exterior and interior previews.",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/wus-digital/cigs-viewer.git"
+  },
+  "homepage": "https://github.com/wus-digital/cigs-viewer#readme",
+  "bugs": {
+    "url": "https://github.com/wus-digital/cigs-viewer/issues"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./styles.css": "./dist/styles.css"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "scripts": {
+    "build": "node scripts/clean.mjs && tsc -p tsconfig.json && node scripts/copy-styles.mjs",
+    "lint": "eslint src tests scripts",
+    "test": "npm run build && node --test tests/*.test.mjs",
+    "prepack": "npm run build",
+    "prepublishOnly": "npm run lint && npm test"
+  },
+  "peerDependencies": {
+    "react": "^18.2.0 || ^19.0.0",
+    "react-dom": "^18.2.0 || ^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "eslint": "^9.0.0",
+    "eslint-config-next": "16.2.6",
+    "jsdom": "^26.1.0",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "react",
+    "configurator",
+    "image-sequence",
+    "360",
+    "viewer"
+  ]
+}
