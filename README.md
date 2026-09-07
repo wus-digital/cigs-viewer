@@ -385,6 +385,12 @@ Die bisherigen Namen `ConfiguratorImageViewer` und `ConfiguratorImageViewerProps
 werden nicht mehr exportiert. Imports und JSX entsprechend umbenennen;
 Props und Verhalten bleiben unveraendert.
 
+Ab **0.4.0** erfolgt das Styling ueber Tailwind CSS 4. Den bisherigen
+Stylesheet-Import entfernen und das Paket wie oben beschrieben per `@source`
+registrieren. Neu sind unter anderem die gemeinsame `cameras`-Auswahl,
+4x-Zoom mit gezieltem 4K-Nachladen, `showDebug` und weiche
+Konfigurationsuebergaenge.
+
 ## Entwicklung und lokale Installation
 
 ### Quellcode-Struktur
@@ -472,7 +478,7 @@ npm pack --dry-run
 npm pack
 
 # In einer separaten React-App:
-npm install /absoluter/pfad/cigs-viewer-0.3.0.tgz
+npm install /absoluter/pfad/cigs-viewer-0.4.0.tgz
 ```
 
 `npm test` baut mit TypeScript, prueft den oeffentlichen Typvertrag und fuehrt
