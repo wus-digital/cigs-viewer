@@ -1,13 +1,12 @@
 import { StrictMode, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import {
-  CigsViewer,
-  type RenderConfiguration,
-  type ViewerCameraId,
-} from 'cigs-viewer';
+import { type RenderConfiguration, type ViewerCameraId } from 'cigs-viewer';
 import { ConfigurationEditor } from './components/ConfigurationEditor';
 import { CameraSelector } from './components/CameraSelector';
 import { ViewerErrorBoundary } from './components/ViewerErrorBoundary';
+import { DemoViewer } from './components/DemoViewer';
+import { ViewerLayoutSelector } from './components/ViewerLayoutSelector';
+import { viewerExample, type ViewerLayout } from './viewer-example.js';
 import { focusStyles, headingStyles, paragraphStyles } from './utilities.js';
 import './style.css';
 
@@ -32,29 +31,40 @@ function Demo() {
   const [enableZoom, setEnableZoom] = useState(false);
   const [showThumbnails, setShowThumbnails] = useState(true);
   const [cameras, setCameras] = useState(INITIAL_CAMERAS);
-  const formattedConfiguration = JSON.stringify(
+  const [layout, setLayout] = useState<ViewerLayout>('default');
+  const snippet = viewerExample({
+    baseUrl: BASE_URL,
     configuration,
-    null,
-    2
-  ).replaceAll('\n', '\n  ');
-  const snippet = `import { CigsViewer } from 'cigs-viewer';\n\n<CigsViewer\n  baseUrl=${JSON.stringify(BASE_URL)}\n  configuration={${formattedConfiguration}}\n  cameras={${JSON.stringify(cameras)}}\n  showThumbnails={${showThumbnails}}${enableZoom ? '\n  enableZoom' : ''}\n  showDebug\n/>`;
+    cameras,
+    enableZoom,
+    showThumbnails,
+    layout,
+  });
 
   return (
     <main className='mx-auto max-w-[1440px] px-6 py-10 max-[900px]:px-3 max-[900px]:py-6'>
       <header>
-        <span className='eyebrow text-xs font-bold tracking-[0.12em] text-[#176bba]'>LOKALES PACKAGE-BEISPIEL</span>
-        <h1 className='my-2 text-[clamp(32px,4vw,48px)] font-bold tracking-[-0.04em]'>CIGS Viewer</h1>
+        <span className='eyebrow text-xs font-bold tracking-[0.12em] text-[#176bba]'>
+          LOKALES PACKAGE-BEISPIEL
+        </span>
+        <h1 className='my-2 text-[clamp(32px,4vw,48px)] font-bold tracking-[-0.04em]'>
+          CIGS Viewer
+        </h1>
         <p className={paragraphStyles}>
           Durch die Kameras wischen, die Ansicht wechseln oder die Konfiguration
           anpassen.
         </p>
       </header>
       <div className='layout mt-7 grid grid-cols-[minmax(0,1fr)_380px] items-start gap-6 max-[900px]:grid-cols-[minmax(0,1fr)]'>
-        <section className='preview min-w-0 overflow-hidden rounded-xl border border-[#dce3eb] bg-white' aria-label='Viewer-Demo'>
+        <section
+          className='preview min-w-0 overflow-hidden rounded-xl border border-[#dce3eb] bg-white'
+          aria-label='Viewer-Demo'
+        >
           <ViewerErrorBoundary
-            resetKey={JSON.stringify([configuration, cameras])}
+            resetKey={JSON.stringify([configuration, cameras, layout])}
           >
-            <CigsViewer
+            <DemoViewer
+              layout={layout}
               baseUrl={BASE_URL}
               className='[--civ-background:#eef3f7]'
               configuration={configuration}
@@ -90,6 +100,7 @@ function Demo() {
           </ViewerErrorBoundary>
         </section>
         <aside className='min-w-0 overflow-hidden rounded-xl border border-[#dce3eb] bg-white p-6'>
+          <ViewerLayoutSelector value={layout} onChange={setLayout} />
           <label className='zoom-toggle mb-6 flex items-center gap-2 text-sm font-semibold'>
             <input
               type='checkbox'
@@ -116,10 +127,14 @@ function Demo() {
           />
           <hr className='my-6 border-0 border-t border-[#dce3eb]' />
           <h2 className={headingStyles}>Bildquelle</h2>
-          <p className={`source text-xs [overflow-wrap:anywhere] ${paragraphStyles}`}>
+          <p
+            className={`source text-xs [overflow-wrap:anywhere] ${paragraphStyles}`}
+          >
             Feste Quelle: <code>{BASE_URL}</code>
           </p>
-          <p className={paragraphStyles}>Alle Bilder werden direkt vom CIGS-Server geladen.</p>
+          <p className={paragraphStyles}>
+            Alle Bilder werden direkt vom CIGS-Server geladen.
+          </p>
         </aside>
       </div>
       <section className='usage mt-6 min-w-0 overflow-hidden rounded-xl border border-[#dce3eb] bg-white p-6'>

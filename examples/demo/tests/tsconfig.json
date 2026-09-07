@@ -7,6 +7,7 @@
   },
   "include": [
     "../src/configuration.ts",
+    "../src/viewer-example.ts",
     "../src/components/ViewerErrorBoundary.tsx"
   ]
 }

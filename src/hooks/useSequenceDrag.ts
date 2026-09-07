@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import type { PointerEvent } from 'react';
 
 interface Drag {
@@ -8,15 +8,28 @@ interface Drag {
   frame: number;
   step: number;
   horizontal: boolean;
+  element: HTMLDivElement;
 }
 
 export function useSequenceDrag(
   pixelsPerFrame: number,
   onSelect: (index: number) => void,
   startFrame: () => number,
-  canDrag = true
+  canDrag = true,
+  scope = '',
+  viewportElement?: HTMLDivElement | null
 ) {
   const drag = useRef<Drag | null>(null);
+  useEffect(
+    () => () => {
+      const current = drag.current;
+      drag.current = null;
+      if (current?.element.hasPointerCapture(current.pointerId)) {
+        current.element.releasePointerCapture(current.pointerId);
+      }
+    },
+    [scope, viewportElement]
+  );
 
   function endDrag(event: PointerEvent<HTMLDivElement>) {
     if (drag.current?.pointerId !== event.pointerId) return;
@@ -37,6 +50,7 @@ export function useSequenceDrag(
         frame: startFrame(),
         step: 0,
         horizontal: false,
+        element: event.currentTarget,
       };
       event.currentTarget.setPointerCapture(event.pointerId);
     },

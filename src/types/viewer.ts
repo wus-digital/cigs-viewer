@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import type {
   EXTERIOR_CAMERAS,
   INTERIOR_CAMERAS,
@@ -74,6 +74,22 @@ export interface ViewerLabels {
   debugZoom?: string;
 }
 
+export interface ViewerClassNames {
+  root?: string;
+  viewport?: string;
+  /** The default layout's navigation wrapper; custom layouts own their wrappers. */
+  navigation?: string;
+  previousButton?: string;
+  nextButton?: string;
+  zoomResetButton?: string;
+  thumbnails?: string;
+  thumbnail?: string;
+  /** Applied to both the preview image and its placeholder wrapper for stable sizing. */
+  thumbnailImage?: string;
+  viewSwitchButton?: string;
+  debug?: string;
+}
+
 interface ViewerControlsProps {
   viewMode?: ViewerViewMode;
   defaultViewMode?: ViewerViewMode;
@@ -98,6 +114,10 @@ interface ViewerControlsProps {
   /** Show actual displayed image metadata below the image. Disabled by default. */
   showDebug?: boolean;
   labels?: Partial<ViewerLabels>;
+  /** Slot utilities override the default theme using tailwind-merge. */
+  classNames?: ViewerClassNames;
+  /** Omit for the default UI. Provided children own the layout and controls. */
+  children?: ReactNode;
   className?: string;
   style?: CSSProperties;
 }

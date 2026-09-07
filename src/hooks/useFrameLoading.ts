@@ -15,7 +15,8 @@ export function useFrameLoading(
   radius: number | 'all',
   loop: boolean,
   showThumbnails: boolean,
-  alternateThumbnail: string | undefined
+  alternateThumbnail: string | undefined,
+  scope = ''
 ) {
   const plan = useMemo(() => {
     const current = frames[frameIndex]?.src;
@@ -47,7 +48,14 @@ export function useFrameLoading(
       frames: frameSources,
     };
   }, [frames, frameIndex, radius, loop, showThumbnails, alternateThumbnail]);
-  const [queue] = useState(() => new ImageLoadQueue(plan));
+  const [state, setState] = useState(() => ({
+    scope,
+    queue: new ImageLoadQueue(plan),
+  }));
+  if (state.scope !== scope) {
+    setState({ scope, queue: new ImageLoadQueue(plan) });
+  }
+  const { queue } = state;
   const snapshot = useSyncExternalStore(
     queue.subscribe,
     queue.getSnapshot,

@@ -1,12 +1,16 @@
 import { useEffect, useState } from 'react';
 import type { RefObject } from 'react';
 import type { ViewerLabels } from '../types/viewer.js';
+import { debugClasses } from '../constants/tailwind.js';
+import { slotClasses } from '../utils/classes.js';
 
 interface Props {
   viewport: RefObject<HTMLDivElement | null>;
   cameraId: string | undefined;
   scale: number;
   labels: ViewerLabels;
+  viewportElement?: HTMLDivElement | null;
+  className?: string | undefined;
 }
 
 interface DisplayedImage {
@@ -15,8 +19,16 @@ interface DisplayedImage {
   height: number;
 }
 
-export function ViewerDebug({ viewport, cameraId, scale, labels }: Props) {
+export function ViewerDebug({
+  viewport,
+  viewportElement,
+  cameraId,
+  scale,
+  labels,
+  className,
+}: Props) {
   const [image, setImage] = useState<DisplayedImage | null>(null);
+  const displayedImage = viewportElement === null ? null : image;
 
   useEffect(() => {
     const stage = viewport.current;
@@ -68,20 +80,22 @@ export function ViewerDebug({ viewport, cameraId, scale, labels }: Props) {
       stage.removeEventListener('load', update, true);
       stage.removeEventListener('error', update, true);
     };
-  }, [viewport]);
+  }, [viewport, viewportElement]);
 
   return (
     <dl
-      className='civ__debug m-0 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-[12px] gap-y-[6px] border-t border-black/15 p-[12px] font-mono text-[12px] leading-[1.5] [&_dd]:m-0 [&_dd]:[overflow-wrap:anywhere] [&_dt]:font-semibold'
+      className={slotClasses('civ__debug', debugClasses, className)}
       aria-label={labels.debug ?? 'Viewer debug'}
     >
       <dt>{labels.debugCamera ?? 'Camera'}</dt>
       <dd data-debug='camera'>{cameraId ?? '-'}</dd>
       <dt>{labels.debugImage ?? 'Displayed image'}</dt>
-      <dd data-debug='image'>{image?.src ?? '-'}</dd>
+      <dd data-debug='image'>{displayedImage?.src ?? '-'}</dd>
       <dt>{labels.debugResolution ?? 'Original resolution'}</dt>
       <dd data-debug='resolution'>
-        {image ? `${image.width} x ${image.height} px` : '-'}
+        {displayedImage
+          ? `${displayedImage.width} x ${displayedImage.height} px`
+          : '-'}
       </dd>
       <dt>{labels.debugZoom ?? 'Zoom'}</dt>
       <dd data-debug='zoom'>{scale.toFixed(2)}x</dd>

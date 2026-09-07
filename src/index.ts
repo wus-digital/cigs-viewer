@@ -1,6 +1,17 @@
 'use client';
 
 export { CigsViewer } from './components/CigsViewer.js';
+export { CigsViewerViewport } from './components/CigsViewerViewport.js';
+export { CigsViewerThumbnails } from './components/CigsViewerThumbnails.js';
+export {
+  CigsViewerPreviousButton,
+  CigsViewerNextButton,
+  CigsViewerZoomResetButton,
+  CigsViewerViewSwitchButton,
+} from './components/CigsViewerButtons.js';
+export type { CigsViewerViewportProps } from './components/CigsViewerViewport.js';
+export type { CigsViewerThumbnailsProps } from './components/CigsViewerThumbnails.js';
+export type { CigsViewerButtonProps } from './components/ViewerButton.js';
 export {
   EXTERIOR_CAMERAS,
   INTERIOR_CAMERAS,
@@ -9,6 +20,7 @@ export {
 } from './constants/default-cameras.js';
 export type {
   CigsViewerProps,
+  ViewerClassNames,
   RenderConfiguration,
   RenderQuality,
   ViewerCamera,

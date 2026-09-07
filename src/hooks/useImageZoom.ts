@@ -20,13 +20,25 @@ function boundPan(value: number, size: number, scale: number) {
 export function useImageZoom(
   enabled: boolean,
   scope: string,
-  blocked: boolean
+  blocked: boolean,
+  canvasElement?: HTMLDivElement | null
 ) {
   const viewport = useRef<HTMLDivElement>(null);
   const pan = useRef<Pan | null>(null);
-  const [zoom, setZoom] = useState({ scope, enabled, scale: 1, x: 0, y: 0 });
-  if (zoom.scope !== scope || zoom.enabled !== enabled) {
-    setZoom({ scope, enabled, scale: 1, x: 0, y: 0 });
+  const [zoom, setZoom] = useState({
+    scope,
+    enabled,
+    canvasElement,
+    scale: 1,
+    x: 0,
+    y: 0,
+  });
+  if (
+    zoom.scope !== scope ||
+    zoom.enabled !== enabled ||
+    zoom.canvasElement !== canvasElement
+  ) {
+    setZoom({ scope, enabled, canvasElement, scale: 1, x: 0, y: 0 });
   }
 
   const release = useCallback(() => {
@@ -39,8 +51,8 @@ export function useImageZoom(
 
   const reset = useCallback(() => {
     release();
-    setZoom({ scope, enabled, scale: 1, x: 0, y: 0 });
-  }, [scope, enabled, release]);
+    setZoom({ scope, enabled, canvasElement, scale: 1, x: 0, y: 0 });
+  }, [scope, enabled, release, canvasElement]);
 
   useEffect(() => {
     const element = viewport.current;
@@ -82,7 +94,7 @@ export function useImageZoom(
     };
     element.addEventListener('wheel', wheel, { passive: false });
     return () => element.removeEventListener('wheel', wheel);
-  }, [enabled, scope, blocked]);
+  }, [enabled, scope, blocked, canvasElement]);
 
   useEffect(() => {
     const element = viewport.current;
@@ -98,7 +110,7 @@ export function useImageZoom(
       window.removeEventListener('resize', reset);
       release();
     };
-  }, [enabled, reset, release]);
+  }, [enabled, reset, release, canvasElement]);
 
   function endPan(event: PointerEvent<HTMLDivElement>) {
     if (pan.current?.pointerId === event.pointerId) release();

@@ -23,9 +23,10 @@ export interface SlideMotion {
   programmatic?: boolean;
 }
 
-interface Motion extends SlideMotion {
+export interface Motion extends SlideMotion {
   scope: string;
   frameIndex: number;
+  viewportElement: HTMLDivElement | null | undefined;
 }
 
 export function useSlideDrag(
@@ -33,7 +34,8 @@ export function useSlideDrag(
   count: number,
   loop: boolean,
   onSelect: (index: number) => void,
-  scope: string
+  scope: string,
+  viewportElement?: HTMLDivElement | null
 ) {
   const viewport = useRef<HTMLDivElement>(null);
   const gesture = useRef<Gesture | null>(null);
@@ -53,8 +55,13 @@ export function useSlideDrag(
     direction: 1,
     scope,
     frameIndex,
+    viewportElement,
   });
-  if (motion.scope !== scope || motion.frameIndex !== frameIndex) {
+  if (
+    motion.scope !== scope ||
+    motion.frameIndex !== frameIndex ||
+    motion.viewportElement !== viewportElement
+  ) {
     setMotion({
       offset: 0,
       active: false,
@@ -62,6 +69,7 @@ export function useSlideDrag(
       direction: 1,
       scope,
       frameIndex,
+      viewportElement,
     });
   }
 
@@ -97,10 +105,11 @@ export function useSlideDrag(
       direction: 1,
       scope,
       frameIndex: target ?? latestFrame.current,
+      viewportElement,
     });
     if (valid) action?.callback();
     return target;
-  }, [scope, clearScheduled]);
+  }, [scope, clearScheduled, viewportElement]);
 
   function settle(
     offset: number,
@@ -138,6 +147,7 @@ export function useSlideDrag(
       programmatic: prepare,
       scope,
       frameIndex: from,
+      viewportElement,
     }));
     if (stageFirst) {
       // Mount the incoming frame at its parallax offset before animating both layers.
@@ -206,7 +216,7 @@ export function useSlideDrag(
       pending.current = null;
       clearScheduled();
     };
-  }, [scope, finish, clearScheduled]);
+  }, [scope, finish, clearScheduled, viewportElement]);
 
   useEffect(() => {
     latestFrame.current = frameIndex;
@@ -337,6 +347,7 @@ export function useSlideDrag(
           direction: current.direction,
           scope,
           frameIndex,
+          viewportElement,
         }));
       },
       onPointerUp(event: PointerEvent<HTMLDivElement>) {

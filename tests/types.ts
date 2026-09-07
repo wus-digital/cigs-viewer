@@ -2,9 +2,21 @@ import type {
   CigsViewerProps,
   ViewerFrameChange,
   ViewerCameraId,
+  ViewerClassNames,
+  CigsViewerButtonProps,
+  CigsViewerViewportProps,
+  CigsViewerThumbnailsProps,
 } from 'cigs-viewer';
-import { CigsViewer } from 'cigs-viewer';
-import { createElement } from 'react';
+import {
+  CigsViewer,
+  CigsViewerViewport,
+  CigsViewerPreviousButton,
+  CigsViewerNextButton,
+  CigsViewerZoomResetButton,
+  CigsViewerThumbnails,
+  CigsViewerViewSwitchButton,
+} from 'cigs-viewer';
+import { createElement, createRef } from 'react';
 
 const props: CigsViewerProps = {
   configuration: { B: '01', M: '01', count: 0, missing: undefined },
@@ -42,6 +54,46 @@ export const defaultCameras: CigsViewerProps = {
 };
 
 export const viewer = createElement(CigsViewer, defaultCameras);
+const classNames: ViewerClassNames = {
+  root: 'rounded-xl',
+  viewport: 'aspect-square',
+  navigation: 'z-20',
+  previousButton: 'bg-white',
+  nextButton: 'bg-white',
+  zoomResetButton: 'rounded-full',
+  thumbnails: 'gap-4',
+  thumbnail: 'aria-pressed:border-blue-500',
+  thumbnailImage: 'object-cover',
+  viewSwitchButton: 'border-blue-500',
+  debug: 'text-sm',
+};
+export const invalidSlot: ViewerClassNames = {
+  // @ts-expect-error Unknown styling slots are rejected.
+  imageTransform: 'scale-150',
+};
+const buttonProps: CigsViewerButtonProps = { asChild: true, className: 'p-4' };
+const viewportProps: CigsViewerViewportProps = { className: 'aspect-square' };
+const thumbnailsProps: CigsViewerThumbnailsProps = { className: 'gap-4' };
+export const compoundViewer = createElement(
+  CigsViewer,
+  {
+    ...defaultCameras,
+    classNames,
+    showThumbnails: true,
+  },
+  createElement(CigsViewerViewport, viewportProps),
+  createElement(CigsViewerPreviousButton, {
+    ref: createRef<HTMLButtonElement>(),
+  }),
+  createElement(
+    CigsViewerNextButton,
+    buttonProps,
+    createElement('button', null, 'Next')
+  ),
+  createElement(CigsViewerZoomResetButton),
+  createElement(CigsViewerThumbnails, thumbnailsProps),
+  createElement(CigsViewerViewSwitchButton)
+);
 const selectedCameras: readonly ViewerCameraId[] = ['C1', 'C6'];
 export const filteredViewer = createElement(CigsViewer, {
   ...defaultCameras,

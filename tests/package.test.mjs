@@ -4,7 +4,11 @@ import { basename, join } from 'node:path';
 import { test } from 'node:test';
 import React from 'react';
 import { renderToString } from 'react-dom/server';
-import { CigsViewer } from 'cigs-viewer';
+import {
+  CigsViewer,
+  CigsViewerViewport,
+  CigsViewerNextButton,
+} from 'cigs-viewer';
 import { adjacentSourceBatches, normalizeFrame } from '../dist/utils/frames.js';
 
 test('exports CigsViewer and ships only the renamed component module', async () => {
@@ -12,6 +16,8 @@ test('exports CigsViewer and ships only the renamed component module', async () 
   assert.equal(typeof api.CigsViewer, 'function');
   assert.equal('ConfiguratorImageViewer' in api, false);
   assert.equal('CigsViwer' in api, false);
+  assert.equal('useViewerContext' in api, false);
+  assert.equal('useViewerController' in api, false);
   const root = new URL('../dist/', import.meta.url);
   assert.deepEqual((await readdir(root)).sort(), [
     'components',
@@ -44,6 +50,20 @@ test('ESM entry is an SSR-safe client boundary with typed exports and no applica
   const html = renderToString(React.createElement(CigsViewer, props));
   assert.match(html, /src="\/renders\/B01_M01_C360_001_PQM-FHD.webp"/);
   assert.doesNotMatch(html, /<(?:canvas|iframe|video)\b/);
+  const custom = renderToString(
+    React.createElement(
+      CigsViewer,
+      {
+        ...props,
+        exteriorCameras: [{ id: 'C1' }, { id: 'C2' }],
+      },
+      React.createElement(CigsViewerViewport),
+      React.createElement(CigsViewerNextButton)
+    )
+  );
+  assert.match(custom, /aria-live="polite"/);
+  assert.match(custom, /aria-label="Next image"/);
+  assert.doesNotMatch(custom, /civ__navigation/);
   const entry = await readFile(
     new URL('../dist/index.js', import.meta.url),
     'utf8'
@@ -52,7 +72,10 @@ test('ESM entry is an SSR-safe client boundary with typed exports and no applica
   const manifest = JSON.parse(
     await readFile(new URL('../package.json', import.meta.url), 'utf8')
   );
-  assert.equal(manifest.dependencies, undefined);
+  assert.deepEqual(Object.keys(manifest.dependencies).sort(), [
+    '@radix-ui/react-slot',
+    'tailwind-merge',
+  ]);
   assert.deepEqual(Object.keys(manifest.peerDependencies), [
     'react',
     'react-dom',

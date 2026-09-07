@@ -3,6 +3,8 @@
 import { useMemo, useState } from 'react';
 import { ImageSequence } from './ImageSequence.js';
 import { defaultLabels } from '../constants/default-labels.js';
+import { rootClasses } from '../constants/tailwind.js';
+import { slotClasses } from '../utils/classes.js';
 import {
   normalizeFrame,
   validateFrames,
@@ -30,6 +32,8 @@ export function ImageFrameViewer({
   showDebug = false,
   labels: customLabels,
   className,
+  classNames,
+  children,
   style,
 }: ImageFrameViewerProps) {
   const [internalMode, setInternalMode] = useState(defaultViewMode);
@@ -124,18 +128,12 @@ export function ImageFrameViewer({
 
   return (
     <div
-      className={[
-        'civ box-border w-full min-w-0 bg-[var(--civ-background)] [font-family:inherit] text-[var(--civ-foreground)] [--civ-accent:#176bba] [--civ-aspect-ratio:16/9] [--civ-background:#f4f4f4] [--civ-foreground:#181818] [&_*]:box-border',
-        className,
-      ]
-        .filter(Boolean)
-        .join(' ')}
+      className={slotClasses('civ', rootClasses, classNames?.root, className)}
       style={style}
       role='group'
       aria-label={labels.viewer}
     >
       <ImageSequence
-        key={`${activeMode}:${dragMode}`}
         frames={frames}
         alternateFrame={
           frames.length ? alternateFrames[alternateIndex] : undefined
@@ -152,10 +150,13 @@ export function ImageFrameViewer({
         showThumbnails={showThumbnails}
         enableZoom={enableZoom}
         showDebug={showDebug}
+        classNames={classNames}
         labels={labels}
         onSelect={selectFrame}
         onImageError={onImageError}
-      />
+      >
+        {children}
+      </ImageSequence>
     </div>
   );
 }

@@ -7,7 +7,9 @@ React-/TypeScript-Viewer fuer den CIGS-Render-Service. Der Viewer erhaelt eine
 baut daraus alle Bildpfade selbst. **Keine manuellen Bild-URL-Arrays.**
 
 Beide Ansichten verwenden normale durchwischbare Bilder: kein Unreal, Arcware,
-WebGL oder Fisheye. Keine Runtime Dependencies ausser React/React DOM als Peers.
+WebGL oder Fisheye. React/React DOM bleiben Peer-Dependencies; kleine
+Runtime-Helfer (`tailwind-merge` und Radix Slot) uebernehmen Klassen-Overrides
+und die Komposition eigener Buttons.
 
 ## Installation
 
@@ -224,6 +226,8 @@ Host-App kontrollierte Kamera-IDs ebenfalls aktualisieren.
 | `showDebug` | `false` | Debug-Anzeige unter dem Bild: Kamera, tatsaechlich dargestellter Bildpfad, Originalaufloesung und Zoomstufe |
 | `labels` | Englisch | Teilmenge von `ViewerLabels`, inklusive Lade-, Fehler-, Retry- und Anleitungstexten |
 | `className`, `style` | - | Gestaltung des Containers |
+| `classNames` | - | Typisierte Tailwind-Overrides fuer einzelne UI-Bestandteile, siehe unten |
+| `children` | Default-Layout | Eigener Aufbau mit den exportierten Viewer-Komponenten |
 
 Callbacks melden Interaktionen, nicht Mount, Konfigurationsaenderungen oder
 automatisches Begrenzen von Indizes. Generierte URLs sind **Ausgabedaten** in
@@ -301,6 +305,121 @@ Konfigurationswechsel verworfen; veraltete Antworten werden ignoriert.
 Bei Fehlern bleiben Basisbild und Retry bedienbar, `onImageError` erhaelt die
 tatsaechlich fehlgeschlagene Zoom-URL. Das Upgrade ist eine priorisierte
 Vordergrund-Anfrage, unabhaengig von den normalen Hintergrund-Paaren.
+
+## Individuelles Styling und eigene Layouts
+
+### Default-Layout anpassen
+
+Ohne `children` bleibt das bisherige Layout erhalten. Mit `classNames` koennen
+einzelne Teile gestaltet werden, ohne Navigation oder Bildlogik selbst zu bauen:
+
+```tsx
+import { CigsViewer, type ViewerClassNames } from 'cigs-viewer';
+
+const classNames = {
+  previousButton: 'size-12 rounded-full bg-slate-900 enabled:hover:bg-slate-700',
+  nextButton: 'size-12 rounded-full bg-slate-900 enabled:hover:bg-slate-700',
+  thumbnails: 'gap-3',
+  thumbnail: 'rounded-xl aria-pressed:border-sky-500',
+  thumbnailImage: 'h-12 w-20 rounded-lg',
+  debug: 'bg-slate-50 text-slate-700',
+} satisfies ViewerClassNames;
+
+<CigsViewer
+  baseUrl="https://cigs.elferplatz.com"
+  configuration={{ B: '01', M: '01', P: '070707', PMV: '100' }}
+  cameras={['C1', 'C2', 'C6']}
+  showThumbnails
+  classNames={classNames}
+/>;
+```
+
+Verfuegbare Schluessel: `root`, `viewport`, `navigation`, `previousButton`,
+`nextButton`, `zoomResetButton`, `thumbnails`, `thumbnail`, `thumbnailImage`,
+`viewSwitchButton` und `debug`.
+`navigation` betrifft nur den Wrapper des Default-Layouts. `thumbnailImage`
+gestaltet sowohl das Vorschaubild als auch seinen Platzhalter, damit eigene
+Breiten und Hoehen beim Laden stabil bleiben.
+
+Die Reihenfolge lautet **Default-Klassen -> `classNames` -> direktes `className`**.
+Bei `asChild` werden explizite Klassen am Child zuletzt zusammengefuehrt.
+Tailwind-Konflikte werden mit `tailwind-merge` aufgeloest. Zustands-Varianten
+gezielt ueberschreiben, beispielsweise `aria-pressed:border-sky-500` oder
+`enabled:hover:bg-slate-700`. Ein normales `bg-white` ersetzt keinen
+Hover-Zustand. Beliebige CSS-Properties wie `[padding:1rem]` werden nicht mit
+allen entsprechenden Utilities zusammengefuehrt; lieber konsistente Utilities
+wie `p-4` verwenden.
+
+### Eigenes Layout mit Children
+
+Die Komponenten teilen sich den internen Viewer-Controller. Pfeile und
+Thumbnails verwenden weiterhin dieselben Animationen, Grenzen und Ladezustaende.
+Positionen werden im Layout vergeben; die einzelnen Controls haben keine fest
+eingebaute Overlay-Position.
+
+```tsx
+import {
+  CigsViewer,
+  CigsViewerViewport,
+  CigsViewerPreviousButton,
+  CigsViewerNextButton,
+  CigsViewerZoomResetButton,
+  CigsViewerThumbnails,
+} from 'cigs-viewer';
+
+<CigsViewer
+  baseUrl="https://cigs.elferplatz.com"
+  configuration={{ B: '01', M: '01', P: '070707', PMV: '100' }}
+  cameras={['C1', 'C2', 'C6']}
+  showThumbnails
+  enableZoom
+>
+  <CigsViewerViewport className="rounded-2xl">
+    <CigsViewerPreviousButton className="absolute left-4 top-1/2 -translate-y-1/2" />
+    <CigsViewerNextButton className="absolute right-4 top-1/2 -translate-y-1/2" />
+    <CigsViewerZoomResetButton className="absolute right-3 top-3" />
+  </CigsViewerViewport>
+  <CigsViewerThumbnails className="mx-auto my-4 gap-3" />
+</CigsViewer>;
+```
+
+- `CigsViewerViewport` rendert die geschuetzte Bildflaeche inklusive Swipe,
+  Crossfade und Zoom. Seine Children sind eigene Overlays, keine automatisch
+  hinzugefuegten Default-Controls.
+- `CigsViewerPreviousButton` und `CigsViewerNextButton` navigieren automatisch.
+- `CigsViewerZoomResetButton` erscheint nur bei vergroessertem Bild.
+- `CigsViewerThumbnails` enthaelt Kameraauswahl und Ansichtswechsel wie bisher:
+  Bei einer Kamera wird deren Thumbnail ausgeblendet; `showThumbnails={false}`
+  unterdrueckt die Kamera-Thumbnails. Ein benoetigter Ansichtswechsel bleibt.
+- `CigsViewerViewSwitchButton` kann bei Bedarf separat platziert werden.
+- `showDebug` funktioniert auch im eigenen Layout und ergaenzt die Anzeige darunter.
+
+Die Komponenten muessen innerhalb ihres `CigsViewer` verwendet werden. Auch
+Controls ausserhalb der Bildflaeche funktionieren dort ohne eigene Click-Handler.
+Pro Viewer ist maximal eine `CigsViewerViewport` gleichzeitig erlaubt.
+Fuer ein eigenes Layout diese einbauen und alle gewuenschten
+Controls explizit platzieren. Interne Transformations- und Bild-Layer bleiben
+Implementierungsdetails.
+
+### Eigene Designsystem-Buttons
+
+Die vier Button-Komponenten unterstuetzen `asChild`. Dabei wird kein weiterer
+Button um das Child herum erzeugt; Verhalten und Beschriftung werden weitergegeben:
+
+```tsx
+<CigsViewerNextButton asChild>
+  <button className="rounded-full bg-slate-900 px-4 text-white">
+    Weiter
+  </button>
+</CigsViewerNextButton>
+```
+
+Eigene React-Button-Komponenten muessen eingehende Props und den Ref an ihren
+nativen `<button>` weiterreichen (bei React 18 mit `forwardRef`). Ein Link oder
+`div` ist kein gleichwertiger Ersatz fuer einen nativen Aktions-Button.
+ARIA-Beschriftungen, `type="button"` und die internen Disabled-Zustaende bleiben
+erhalten. Eigene Click-Handler werden komponiert; `event.preventDefault()`
+kann die Viewer-Aktion bewusst unterbinden.
 
 ## Styling, Performance und Next.js
 
@@ -433,6 +552,9 @@ Der Vite-Resolver dedupliziert React fuer die lokale Paketverknuepfung.
 
 - Kamera-Checkboxen fuer den gesamten System-Katalog sowie Presets **Alle**,
   **Nur C1** und **Nur C6**. Die bisherige Demo-Auswahl ist initial vorausgewaehlt.
+- **Darstellung** wechselt zwischen Standard-Layout, Styling-Overrides und eigenem
+  Layout mit Thumbnails unter dem Bild und `asChild`-Buttons. Das JSX-Beispiel
+  zeigt jeweils die tatsaechlich verwendete API.
 - **Thumbnails anzeigen** ist initial aktiviert; **Mausrad-Zoom aktivieren**
   ist initial deaktiviert. Beide Optionen sind umschaltbar.
 - Editierbare Key-Value-Liste, initial mit `B: '01'`, `M: '01'`,
