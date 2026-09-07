@@ -1,19 +1,4 @@
-import type { ViewerFrame, ViewerLabels } from './types.js';
-
-export const defaultLabels: ViewerLabels = {
-  viewer: 'Product viewer',
-  exterior: 'Exterior',
-  interior: 'Interior',
-  previous: 'Previous image',
-  next: 'Next image',
-  loading: 'Loading image...',
-  empty: 'No images available for this view.',
-  error: 'The image could not be loaded.',
-  retry: 'Retry',
-  frames: 'Choose an image',
-  instructions:
-    'Swipe horizontally or use the arrow keys. Home and End select the first and last image.',
-};
+import type { ViewerFrame } from '../types/viewer.js';
 
 export function normalizeFrame(
   index: number,

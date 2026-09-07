@@ -5,11 +5,11 @@ import type {
   ViewerFrame,
   ViewerRenderOptions,
   ViewerViewMode,
-} from './types.js';
+} from '../types/viewer.js';
 import {
   DEFAULT_EXTERIOR_CAMERAS,
   DEFAULT_INTERIOR_CAMERAS,
-} from './default-cameras.js';
+} from '../constants/default-cameras.js';
 
 const defaultOmittedKeys = {
   exterior: ['AKZI', 'DHC'],

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ViewerFrameChange, ViewerLabels } from './types.js';
+import type { ViewerFrameChange, ViewerLabels } from '../types/viewer.js';
 
 interface Props {
   change: ViewerFrameChange;

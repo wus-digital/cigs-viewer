@@ -1,10 +1,10 @@
 'use client';
 
-export { CigsViewer } from './CigsViewer.js';
+export { CigsViewer } from './components/CigsViewer.js';
 export {
   DEFAULT_EXTERIOR_CAMERAS,
   DEFAULT_INTERIOR_CAMERAS,
-} from './default-cameras.js';
+} from './constants/default-cameras.js';
 export type {
   CigsViewerProps,
   RenderConfiguration,
@@ -15,4 +15,4 @@ export type {
   ViewerFrameChange,
   ViewerLabels,
   ViewerViewMode,
-} from './types.js';
+} from './types/viewer.js';

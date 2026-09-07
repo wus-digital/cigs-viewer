@@ -2,13 +2,13 @@
 
 import { useMemo, useState } from 'react';
 import { ImageSequence } from './ImageSequence.js';
+import { defaultLabels } from '../constants/default-labels.js';
 import {
-  defaultLabels,
   normalizeFrame,
   validateFrames,
   validateInteger,
-} from './frames.js';
-import type { ImageFrameViewerProps, ViewerViewMode } from './types.js';
+} from '../utils/frames.js';
+import type { ImageFrameViewerProps, ViewerViewMode } from '../types/viewer.js';
 
 export function ImageFrameViewer({
   exteriorFrames,

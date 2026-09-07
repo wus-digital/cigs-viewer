@@ -1,13 +1,13 @@
 import { useEffect, useId } from 'react';
 import { FrameImage } from './FrameImage.js';
-import { adjacentSources } from './frames.js';
-import { useSequenceDrag } from './useSequenceDrag.js';
+import { adjacentSources } from '../utils/frames.js';
+import { useSequenceDrag } from '../hooks/useSequenceDrag.js';
 import type {
   ViewerFrame,
   ViewerFrameChange,
   ViewerLabels,
   ViewerViewMode,
-} from './types.js';
+} from '../types/viewer.js';
 
 interface Props {
   frames: readonly ViewerFrame[];

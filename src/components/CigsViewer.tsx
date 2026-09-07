@@ -2,12 +2,12 @@
 
 import { useMemo } from 'react';
 import { ImageFrameViewer } from './ImageFrameViewer.js';
-import { buildViewerFrames } from './render-frames.js';
+import { buildViewerFrames } from '../utils/render-frames.js';
 import {
   DEFAULT_EXTERIOR_CAMERAS,
   DEFAULT_INTERIOR_CAMERAS,
-} from './default-cameras.js';
-import type { CigsViewerProps } from './types.js';
+} from '../constants/default-cameras.js';
+import type { CigsViewerProps } from '../types/viewer.js';
 
 export function CigsViewer({
   configuration,
