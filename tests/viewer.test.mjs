@@ -6,6 +6,7 @@ import { createRoot, hydrateRoot } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
 import { act as legacyAct } from 'react-dom/test-utils';
 import { ConfiguratorImageViewer } from 'cigs-viewer';
+import { ImageFrameViewer } from '../dist/ImageFrameViewer.js';
 
 const act = React.act ?? legacyAct;
 
@@ -60,7 +61,7 @@ async function render(props = {}) {
   }
   await act(() =>
     root.render(
-      React.createElement(ConfiguratorImageViewer, { ...defaults, ...props })
+      React.createElement(ImageFrameViewer, { ...defaults, ...props })
     )
   );
 }
@@ -283,8 +284,8 @@ test('multiple viewer instances have independent state and accessible IDs', asyn
       React.createElement(
         React.Fragment,
         null,
-        React.createElement(ConfiguratorImageViewer, defaults),
-        React.createElement(ConfiguratorImageViewer, defaults)
+        React.createElement(ImageFrameViewer, defaults),
+        React.createElement(ImageFrameViewer, defaults)
       )
     )
   );
@@ -343,14 +344,14 @@ test('already-complete images settle correctly, including cached failures', asyn
 test('server HTML hydrates without mismatches and navigation remains interactive', async () => {
   container = document.createElement('div');
   container.innerHTML = renderToString(
-    React.createElement(ConfiguratorImageViewer, defaults)
+    React.createElement(ImageFrameViewer, defaults)
   );
   document.body.append(container);
   const errors = [];
   await act(() => {
     root = hydrateRoot(
       container,
-      React.createElement(ConfiguratorImageViewer, defaults),
+      React.createElement(ImageFrameViewer, defaults),
       { onRecoverableError: (error) => errors.push(error) }
     );
   });
@@ -358,4 +359,212 @@ test('server HTML hydrates without mismatches and navigation remains interactive
   await click('Interior');
   await click('Next image');
   assert.equal(activeImage().getAttribute('src'), '/interior/1.webp');
+});
+
+const renderDefaults = {
+  baseUrl: '/renders',
+  configuration: {
+    B: 'GT3RS',
+    M: '01',
+    P: '070707',
+    AKZ: '01',
+    AKZI: '02',
+    DHC: '03',
+  },
+  exteriorCameras: [
+    { id: 'C360_001', label: 'Front' },
+    { id: 'C360_002', label: 'Side' },
+    { id: 'C360_003', label: 'Rear' },
+  ],
+  interiorCameras: [
+    { id: 'CINT_DASH', label: 'Dashboard' },
+    { id: 'CINT_SEAT', label: 'Seats' },
+    { id: 'CINT_DOOR', label: 'Door' },
+  ],
+};
+const exteriorCode = 'BGT3RS_M01_P070707_AKZ01';
+const interiorCode = 'BGT3RS_M01_P070707_AKZI02_DHC03';
+
+async function renderConfiguration(props = {}) {
+  if (!root) {
+    container = document.createElement('div');
+    document.body.append(container);
+    root = createRoot(container);
+  }
+  await act(() =>
+    root.render(
+      React.createElement(ConfiguratorImageViewer, {
+        ...renderDefaults,
+        ...props,
+      })
+    )
+  );
+}
+
+test('public API builds both camera sequences from configuration, including swiping and preloading', async () => {
+  const changes = [];
+  await renderConfiguration({
+    pixelsPerFrame: 20,
+    onFrameChange: (change) => changes.push(change),
+  });
+  assert.equal(
+    activeImage().getAttribute('src'),
+    `/renders/${exteriorCode}_C360_001_PQM-FHD.webp`
+  );
+  assert.equal(activeImage().alt, 'Front');
+  assert.deepEqual(preloaded, [
+    `/renders/${exteriorCode}_C360_003_PQM-FHD.webp`,
+    `/renders/${exteriorCode}_C360_002_PQM-FHD.webp`,
+  ]);
+  await pointer('pointerdown', 100);
+  await pointer('pointermove', 80);
+  await pointer('pointerup', 80);
+  assert.equal(
+    activeImage().getAttribute('src'),
+    `/renders/${exteriorCode}_C360_002_PQM-FHD.webp`
+  );
+  await click('Interior');
+  assert.equal(
+    activeImage().getAttribute('src'),
+    `/renders/${interiorCode}_CINT_DASH_PQM-FHD.webp`
+  );
+  await pointer('pointerdown', 100);
+  await pointer('pointermove', 80);
+  await pointer('pointerup', 80);
+  assert.equal(
+    activeImage().getAttribute('src'),
+    `/renders/${interiorCode}_CINT_SEAT_PQM-FHD.webp`
+  );
+  assert.equal(activeImage().alt, 'Seats');
+  assert.deepEqual(
+    changes.map(({ viewMode, frame }) => [viewMode, frame.cameraId]),
+    [
+      ['exterior', 'C360_002'],
+      ['interior', 'CINT_SEAT'],
+    ]
+  );
+  await click('Exterior');
+  assert.equal(
+    activeImage().getAttribute('src'),
+    `/renders/${exteriorCode}_C360_002_PQM-FHD.webp`
+  );
+});
+
+test('configuration and quality updates rebuild current, neighbor and thumbnail paths without resetting the frame', async () => {
+  await renderConfiguration({
+    showThumbnails: true,
+    thumbnailQuality: 'FHD',
+    quality: '4K',
+  });
+  await click('Next image');
+  const previousImage = activeImage();
+  preloaded.length = 0;
+  await renderConfiguration({
+    configuration: { ...renderDefaults.configuration, P: 'FFFFFF' },
+    showThumbnails: true,
+    thumbnailQuality: 'WQHD',
+    quality: '8K',
+  });
+  const code = 'BGT3RS_M01_PFFFFFF_AKZ01';
+  assert.equal(
+    activeImage().getAttribute('src'),
+    `/renders/${code}_C360_002_PQM-8K.webp`
+  );
+  assert.deepEqual(preloaded, [
+    `/renders/${code}_C360_001_PQM-8K.webp`,
+    `/renders/${code}_C360_003_PQM-8K.webp`,
+  ]);
+  assert.equal(
+    container.querySelector('.civ__thumbnails img').getAttribute('src'),
+    `/renders/${code}_C360_001_PQM-WQHD.webp`
+  );
+  await act(() => previousImage.dispatchEvent(new dom.window.Event('load')));
+  assert.match(
+    container.querySelector('[role="status"]').textContent,
+    /Loading/
+  );
+  await click('Interior');
+  assert.equal(
+    activeImage().getAttribute('src'),
+    '/renders/BGT3RS_M01_PFFFFFF_AKZI02_DHC03_CINT_DASH_PQM-8K.webp'
+  );
+});
+
+test('cameraId controls selection and callbacks identify the requested camera', async () => {
+  const changes = [];
+  const modes = [];
+  await renderConfiguration({
+    viewMode: 'exterior',
+    cameraId: 'C360_002',
+    onFrameChange: (change) => changes.push(change),
+    onViewModeChange: (mode) => modes.push(mode),
+  });
+  await click('Next image');
+  assert.equal(changes[0].frame.cameraId, 'C360_003');
+  assert.equal(changes[0].frameIndex, 2);
+  assert.equal(activeImage().alt, 'Side');
+  await click('Interior');
+  assert.deepEqual(modes, ['interior']);
+  await renderConfiguration({ viewMode: 'interior', cameraId: 'CINT_DOOR' });
+  assert.equal(activeImage().alt, 'Door');
+  assert.equal(
+    activeImage().getAttribute('src'),
+    `/renders/${interiorCode}_CINT_DOOR_PQM-FHD.webp`
+  );
+});
+
+test('errors report the generated URL and camera and retry the same configuration', async () => {
+  const errors = [];
+  await renderConfiguration({
+    defaultViewMode: 'interior',
+    onImageError: (error, change) => errors.push({ error, change }),
+  });
+  await act(() => activeImage().dispatchEvent(new dom.window.Event('error')));
+  assert.equal(errors[0].change.frame.cameraId, 'CINT_DASH');
+  assert.equal(
+    errors[0].change.frame.src,
+    `/renders/${interiorCode}_CINT_DASH_PQM-FHD.webp`
+  );
+  await click('Retry');
+  assert.equal(activeImage().getAttribute('src'), errors[0].change.frame.src);
+  await act(() => activeImage().dispatchEvent(new dom.window.Event('load')));
+  assert.equal(container.querySelector('[role="alert"]'), null);
+});
+
+test('empty camera sets and custom render-code filters are supported by the public API', async () => {
+  await renderConfiguration({
+    exteriorCameras: [],
+    omittedConfigurationKeys: { interior: [] },
+  });
+  assert.match(container.textContent, /No images available/);
+  await click('Interior');
+  assert.equal(
+    activeImage().getAttribute('src'),
+    '/renders/BGT3RS_M01_P070707_AKZ01_AKZI02_DHC03_CINT_DASH_PQM-FHD.webp'
+  );
+});
+
+test('configuration-driven public entry hydrates and navigates without mismatches', async () => {
+  container = document.createElement('div');
+  container.innerHTML = renderToString(
+    React.createElement(ConfiguratorImageViewer, renderDefaults)
+  );
+  document.body.append(container);
+  const errors = [];
+  await act(() => {
+    root = hydrateRoot(
+      container,
+      React.createElement(ConfiguratorImageViewer, renderDefaults),
+      {
+        onRecoverableError: (error) => errors.push(error),
+      }
+    );
+  });
+  assert.deepEqual(errors, []);
+  await click('Interior');
+  await key('End');
+  assert.equal(
+    activeImage().getAttribute('src'),
+    `/renders/${interiorCode}_CINT_DOOR_PQM-FHD.webp`
+  );
 });

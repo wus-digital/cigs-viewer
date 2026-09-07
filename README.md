@@ -2,26 +2,12 @@
 
 Repository: [wus-digital/cigs-viewer](https://github.com/wus-digital/cigs-viewer).
 
-Eigenstaendiger React-/TypeScript-Viewer fuer bildbasierte Exterieur- und
-Interieur-Sequenzen. Beide Ansichten verwenden denselben Renderer und dieselbe
-Swipe-Logik. Keine Laufzeitabhaengigkeit von Next.js, Tailwind, Zustand, Three.js,
-Pannellum, Unreal oder Arcware.
+React-/TypeScript-Viewer fuer den CIGS-Render-Service. Der Viewer erhaelt eine
+`configuration` als Key-Value-Objekt sowie Exterieur- und Interieur-Kameras und
+baut daraus alle Bildpfade selbst. **Keine manuellen Bild-URL-Arrays.**
 
-## Funktionsumfang
-
-- Maus-/Touch-/Stift-Drag, Vor/Zurueck, Pfeiltasten, Home und End.
-- Umschaltung zwischen Exterieur und Interieur; separate gemerkte Bildpositionen.
-- Optional steuerbare Ansicht und Bildposition fuer externe Configurator-Controls.
-- Optionaler Loop und optionale Thumbnail-Leiste.
-- Standardmaessig nur das aktuelle Bild und zwei benachbarte Bilder der aktiven
-  Ansicht, kein Vorladen kompletter 120-Frame-Sequenzen.
-- Lade-, Leer- und Fehlerzustaende mit Retry und Fehler-Callback.
-- Anpassbare Texte, CSS-Variablen, sichtbarer Tastaturfokus und mehrere Instanzen.
-- ESM und TypeScript-Deklarationen. SSR-kompatibler `use client`-Entry fuer Next.js.
-
-Bewusst nicht enthalten: Streaming, Fisheye-/Panorama-Projektion, WebGL,
-3D-Hotspots, Kamera-Fokusfahrten, Zoom/Panning, 3D-Sitzkonfiguration, Grid- und
-Fullscreen-Praesentationsmodus. Der bestehende App-Viewer wird nicht ersetzt.
+Beide Ansichten verwenden normale durchwischbare Bilder: kein Unreal, Arcware,
+WebGL oder Fisheye. Keine Runtime Dependencies ausser React/React DOM als Peers.
 
 ## Installation
 
@@ -31,8 +17,8 @@ Nach Veroeffentlichung auf npm:
 npm install cigs-viewer react react-dom
 ```
 
-React und React DOM sind Peer Dependencies (18.2+ oder 19.x).
-Das Paket liefert ESM, keinen separaten CommonJS-Build.
+React/React DOM 18.2+ oder 19.x, ESM und TypeScript-Deklarationen.
+Eine Veroeffentlichung auf GitHub ist noch keine Veroeffentlichung auf npm.
 
 ## Verwendung
 
@@ -40,58 +26,93 @@ Das Paket liefert ESM, keinen separaten CommonJS-Build.
 import { ConfiguratorImageViewer } from 'cigs-viewer';
 import 'cigs-viewer/styles.css';
 
-const exteriorFrames = Array.from({ length: 120 }, (_, index) => ({
-  src: `/renders/exterior/${String(index + 1).padStart(3, '0')}.webp`,
-  alt: `Exterieur, Ansicht ${index + 1}`,
+const configuration = {
+  B: 'GT3RS',
+  M: '01',
+  P: '070707',
+};
+
+const exteriorCameras = Array.from({ length: 120 }, (_, index) => ({
+  id: `C360_${String(index + 1).padStart(3, '0')}`,
+  label: `Exterieur ${index + 1}`,
 }));
 
-const interiorFrames = [
-  { src: '/renders/interior/dashboard.webp', alt: 'Armaturenbrett' },
-  { src: '/renders/interior/seats.webp', alt: 'Sitze' },
-  { src: '/renders/interior/door.webp', alt: 'Tuerverkleidung' },
+// Beispiel-IDs: durch die tatsaechlichen Kamera-IDs des Render-Service ersetzen.
+const interiorCameras = [
+  { id: 'CINT_DASH', label: 'Armaturenbrett' },
+  { id: 'CINT_SEAT', label: 'Sitze' },
+  { id: 'CINT_DOOR', label: 'Tuerverkleidung' },
 ];
 
 export function Preview() {
   return (
     <ConfiguratorImageViewer
-      exteriorFrames={exteriorFrames}
-      interiorFrames={interiorFrames}
+      baseUrl='https://renders.example.com'
+      configuration={configuration}
+      exteriorCameras={exteriorCameras}
+      interiorCameras={interiorCameras}
+      quality='FHD'
       labels={{
         viewer: 'Fahrzeugansicht',
         exterior: 'Exterieur',
         interior: 'Interieur',
         previous: 'Vorheriges Bild',
         next: 'Naechstes Bild',
-        loading: 'Bild wird geladen...',
-        empty: 'Fuer diese Ansicht sind keine Bilder vorhanden.',
-        error: 'Das Bild konnte nicht geladen werden.',
-        retry: 'Erneut versuchen',
-        frames: 'Bild auswaehlen',
-        instructions: 'Horizontal wischen oder die Pfeiltasten verwenden. Home und End waehlen das erste und letzte Bild.',
       }}
     />
   );
 }
 ```
 
-Die URLs sind Beispiele; das Paket enthaelt keine Produktbilder und keinen
-Render-Service. Bilder werden in Array-Reihenfolge angezeigt. Interieur und
-Exterieur duerfen unterschiedlich viele Bilder haben. `src` muss eine nichtleere
-Bild-URL sein; leere Arrays zeigen einen expliziten Leerzustand.
+`baseUrl` ist nur die Adresse des Render-Service, kein fertiger Bildpfad.
+Die Host-App kann ihren ENV-Wert dafuer uebergeben; das Paket liest keine
+projektspezifischen Umgebungsvariablen und verwendet keinen fest eingebauten Host.
 
-**Das bisherige `C360INT`-Panorama ist kein geeignetes Einzelbild.** Fuer das neue
-Interieur muessen normale perspektivische Renderings bereitgestellt werden.
-Das Paket konvertiert keine Panoramen und erfindet keine Render-API-Endpunkte.
+### So werden die Pfade gebaut
 
-### Next.js App Router
+```text
+{baseUrl}/{key}{value}_{key}{value}_{camera.id}_PQM-{quality}.webp
+```
 
-CSS beispielsweise im Root-Layout importieren. Der Paket-Entry behaelt
-`'use client'`; ein zusaetzliches `dynamic(..., { ssr: false })` ist nicht notwendig.
-Die reinen URL-Arrays koennen aus einem Server Component kommen. Callbacks,
-React-State und Store-Anbindung gehoeren in ein Client Component.
-`transpilePackages` ist fuer den kompilierten ESM-Build nicht erforderlich.
+Fuer die obige Konfiguration entstehen automatisch beispielsweise:
 
-### Externe Steuerung / Store-Anbindung
+```text
+https://renders.example.com/BGT3RS_M01_P070707_C360_001_PQM-FHD.webp
+https://renders.example.com/BGT3RS_M01_P070707_CINT_SEAT_PQM-FHD.webp
+```
+
+- Die Kamera-ID ist der **vollstaendige Kamera-Token im Dateinamen**, nicht ein
+  Pfad und nicht ein Alias fuer eine Fisheye-Yaw-/Pitch-Position. IDs werden weder
+  umgeschrieben noch automatisch mit `C360`/`C360INT` ergaenzt.
+- Die Reihenfolge der Kamera-Arrays bestimmt die Swipe-Reihenfolge. Beide
+  Ansichten duerfen unterschiedlich viele Kameras haben.
+- Die `Object.entries(configuration)`-Reihenfolge bleibt wie im bisherigen
+  Render-Builder erhalten. Die Keys werden **nicht alphabetisch sortiert**.
+- `''`, `undefined` und `null` werden ausgelassen; numerische Werte einschliesslich
+  `0` werden als Text angehaengt. Fuer fuehrende Nullen Strings wie `'01'` verwenden.
+- Die bisherigen CIGS-Filter sind Standard: Exterieur ohne `AKZI` und `DHC`,
+  Interieur ohne `AKZ`. Anpassbar mit
+  `omittedConfigurationKeys={{ exterior: [], interior: [] }}`; ein explizites
+  leeres Array deaktiviert den Filter fuer die jeweilige Ansicht.
+- Qualitaeten: `FHD`, `WQHD`, `4K`, `4KHQ`, `8K`, `8KHQ`; Standard `FHD`.
+  Der Render-Service muss die gewaehlte Qualitaet fuer die Kamera anbieten.
+- Die Dateiendung ist `.webp`, entsprechend dem vorhandenen CIGS-Schema.
+
+Das Paket enthaelt weder Produktbilder noch einen Render-Service.
+**Das bisherige einzelne `C360INT`-Panorama wird nicht in Kamera-Einzelbilder
+konvertiert.** Fuer das neue Interieur werden reale perspektivische Renderings
+mit den uebergebenen Kamera-IDs benoetigt. Die Beispiel-IDs sind keine Zusage,
+dass solche Kameras in einem bestehenden Render-Service vorhanden sind.
+
+### Konfiguration aendern
+
+Ein neues `configuration`-Objekt uebergeben, beispielsweise
+`{ ...configuration, P: 'FFFFFF' }`. Der Viewer baut aktuelle Bilder,
+Nachbar-Preloads und Thumbnails neu auf. Die gemerkten Bildindizes fuer beide
+Ansichten bleiben erhalten. Bei kuerzeren Kameralisten wird der Index begrenzt.
+Kameralisten ebenfalls unveraenderlich behandeln und als neue Arrays uebergeben.
+
+### Externe Kamerasteuerung
 
 ```tsx
 'use client';
@@ -99,114 +120,113 @@ React-State und Store-Anbindung gehoeren in ein Client Component.
 import { useState } from 'react';
 import {
   ConfiguratorImageViewer,
-  type ViewerFrame,
+  type ViewerRenderOptions,
   type ViewerViewMode,
 } from 'cigs-viewer';
 import 'cigs-viewer/styles.css';
 
-export function ControlledPreview({
-  exteriorFrames,
-  interiorFrames,
-}: {
-  exteriorFrames: readonly ViewerFrame[];
-  interiorFrames: readonly ViewerFrame[];
-}) {
+export function ControlledPreview(props: ViewerRenderOptions) {
   const [viewMode, setViewMode] = useState<ViewerViewMode>('exterior');
-  const [indices, setIndices] = useState({ exterior: 0, interior: 0 });
+  const [cameraIds, setCameraIds] = useState({
+    exterior: props.exteriorCameras[0]?.id,
+    interior: props.interiorCameras[0]?.id,
+  });
+  const cameraId = cameraIds[viewMode];
 
   return (
     <ConfiguratorImageViewer
-      exteriorFrames={exteriorFrames}
-      interiorFrames={interiorFrames}
+      {...props}
       viewMode={viewMode}
-      frameIndex={indices[viewMode]}
+      {...(cameraId === undefined ? {} : { cameraId })}
       onViewModeChange={setViewMode}
-      onFrameChange={({ viewMode: mode, frameIndex }) =>
-        setIndices((current) => ({ ...current, [mode]: frameIndex }))
+      onFrameChange={({ viewMode: mode, frame }) =>
+        setCameraIds((current) => ({ ...current, [mode]: frame.cameraId }))
       }
-      onImageError={(error, { viewMode: mode, frameIndex }) => {
-        console.error('Viewer image failed', { error, mode, frameIndex });
-      }}
     />
   );
 }
 ```
 
-`onFrameChange` meldet Navigation innerhalb der aktiven Ansicht, nicht den
-initialen Mount, Moduswechsel oder das Clamp nach einer Datenaktualisierung.
-`onViewModeChange` meldet den gewuenschten Moduswechsel. Kontrollierte Props
-aendern sich erst, wenn der Host sie aktualisiert.
+`cameraId` waehlt eine Kamera in der aktiven Ansicht. Mit
+`onFrameChange` uebernimmt die Host-App den gewuenschten Wechsel nach Swipe,
+Tastatur oder Button. Kontrollierte Props aendern sich erst, wenn der Host sie
+aktualisiert. `viewMode` und `cameraId` beim externen Ansichtwechsel gemeinsam
+aktualisieren; die ID muss in der neuen Ansicht existieren.
 
-Die App kann ihre vorhandene Exterieur-URL-Funktion weiterhin **ausserhalb** des
-Pakets verwenden:
-
-```tsx
-const exteriorFrames = Array.from({ length: 120 }, (_, index) => ({
-  src: buildExteriorFrameUrl(configuration, index + 1, 'FHD'),
-}));
-```
-
-`buildExteriorFrameUrl` stammt aus der Host-App, nicht aus diesem Paket. Die
-Interieur-URLs kommen aus dem eigenen Asset-Manifest oder Render-Service.
-Neue Konfigurationen als neue Arrays uebergeben; die Bildposition bleibt erhalten.
-Bei weniger Bildern wird auf den letzten gueltigen Index begrenzt. Fuer einen
-vollstaendigen Reset kann der Host einen neuen React-`key` setzen.
+Alternativ ist `frameIndex` als nullbasierter kontrollierter Index verfuegbar.
+**Nicht gleichzeitig mit `cameraId` verwenden.** Ohne beide Props verwaltet
+der Viewer die Indizes selbst. Bei veraenderlichen Kameralisten muss die
+Host-App kontrollierte Kamera-IDs ebenfalls aktualisieren.
 
 ## API
 
 | Prop | Default | Bedeutung |
 | --- | --- | --- |
-| `exteriorFrames`, `interiorFrames` | erforderlich | Readonly-Arrays von `{ src, alt?, thumbnailSrc? }` |
-| `viewMode` / `defaultViewMode` | intern / `exterior` | Kontrollierter bzw. initialer Modus |
-| `frameIndex` / `defaultFrameIndex` | intern / `0` | Nullbasierter Index; Default gilt initial fuer beide Ansichten |
-| `onViewModeChange` | - | `(mode) => void` |
-| `onFrameChange` | - | `({ viewMode, frameIndex, frame }) => void` |
-| `onImageError` | - | `(error, { viewMode, frameIndex, frame }) => void` fuer das angezeigte Bild |
-| `loop` | `true` | Navigation am Ende zyklisch fortsetzen |
-| `pixelsPerFrame` | `24` | Positive ganzzahlige Drag-Distanz in CSS-Pixeln pro Bild |
-| `preloadRadius` | `1` | 0-4 Nachbarbilder pro Richtung, nur aktive Ansicht; 0 deaktiviert Preloading |
-| `showThumbnails` | `false` | Thumbnail-Leiste; ohne `thumbnailSrc` wird nur eine Nummer angezeigt |
-| `labels` | Englisch | Teilmenge von `ViewerLabels` |
+| `configuration` | erforderlich | `Readonly<Record<string, string \| number \| null \| undefined>>` |
+| `baseUrl` | erforderlich | HTTP(S)-Adresse oder Root-relatives Verzeichnis wie `/renders` |
+| `exteriorCameras`, `interiorCameras` | erforderlich | Arrays von `{ id, label? }` |
+| `quality` | `FHD` | CIGS-Qualitaet der dargestellten Bilder und Preloads |
+| `thumbnailQuality` | - | Optionale Thumbnail-Qualitaet; ebenfalls automatisch erzeugte Pfade |
+| `omittedConfigurationKeys` | Ext: `AKZI`, `DHC`; Int: `AKZ` | Optionale Filter pro Ansicht |
+| `viewMode` / `defaultViewMode` | intern / `exterior` | Kontrollierte bzw. initiale Ansicht |
+| `cameraId` | intern | Kontrollierte Kamera-ID in der aktiven Ansicht |
+| `frameIndex` / `defaultFrameIndex` | intern / `0` | Kontrollierter bzw. initialer nullbasierter Index |
+| `onViewModeChange` | - | `(viewMode) => void` |
+| `onFrameChange` | - | `({ viewMode, frameIndex, frame }) => void`; `frame` enthaelt `cameraId`, `src`, optional `alt`, `thumbnailSrc` |
+| `onImageError` | - | `(error, change) => void` fuer das angezeigte Bild |
+| `loop` | `true` | Zyklische Navigation |
+| `pixelsPerFrame` | `24` | Positive ganzzahlige Drag-Distanz in CSS-Pixeln |
+| `preloadRadius` | `1` | 0-4 Nachbarbilder pro Richtung, nur aktive Ansicht |
+| `showThumbnails` | `false` | Thumbnail-Leiste; ohne `thumbnailQuality` nur nummerierte Buttons |
+| `labels` | Englisch | Teilmenge von `ViewerLabels`, inklusive Lade-, Fehler-, Retry- und Anleitungstexten |
 | `className`, `style` | - | Gestaltung des Containers |
 
-Ungueltige numerische Optionen und leere Bild-URLs werfen explizite Fehler.
-Der Host kann diese mit seiner React Error Boundary behandeln. Bildladefehler
-haben einen eigenen sichtbaren Fehlerzustand; der Callback ist optional.
-Spekulatives Nachbar-Preloading blockiert den Viewer nicht. Ein defektes
-Nachbarbild wird erst bei seiner Auswahl als Fehler gemeldet.
+Callbacks melden Interaktionen, nicht Mount, Konfigurationsaenderungen oder
+automatisches Begrenzen von Indizes. Generierte URLs sind **Ausgabedaten** in
+Callbacks, keine manuell zu uebergebenden Props. `ViewerFrame` ist ein Ausgabetyp.
+Der interne Bild-Renderer ist kein oeffentlicher Package-Export.
 
-## Styling und Performance
+Leere Kameralisten zeigen einen Leerzustand. Nach dem Filtern muss mindestens
+ein Konfigurationscode uebrig bleiben. Doppelte Kamera-IDs innerhalb einer
+Ansicht, unbekannte kontrollierte Kamera-IDs und ungueltige Optionen werfen
+explizite Fehler fuer eine Host-Error-Boundary.
 
-```css
-.my-viewer {
-  --civ-background: #fff;
-  --civ-foreground: #111;
-  --civ-accent: #0062bd;
-  --civ-aspect-ratio: 16 / 9;
-}
-```
+Dateinamen-Tokens erlauben Buchstaben, Ziffern, `_` und `-`. Pfade, Querystrings
+und URL-Steuerzeichen sind in Konfigurationswerten oder Kamera-IDs nicht erlaubt.
+`baseUrl` darf weder Zugangsdaten noch Querystring oder Hash enthalten.
+Bildladefehler sind sichtbar, werden gemeldet und koennen erneut versucht werden.
 
-`className="my-viewer"` setzen. Der Viewer reserviert per `aspect-ratio` Platz;
-`object-fit: contain` zeigt das vollstaendige Bild ohne Verzerrung. Native
-Touch-Gesten erlauben weiterhin vertikales Scrollen und Browser-Pinch-Zoom.
+## Styling, Performance und Next.js
 
-Passend dimensionierte WebP-/AVIF-Dateien und kleine separate Thumbnails liefern.
-Ein engeres Preload-Fenster reduziert Requests, garantiert aber kein ruckelfreies
-Abspielen unbesuchter Bilder bei langsamen Verbindungen. Es wird kein eigener
-unbegrenzter Decoded-Image-Cache angelegt; Browser-Cache und Cache-Header des
-Bildservers bestimmen die Wiederverwendung. Stabile, versionierte URLs mit
-langem Public-Cache nur fuer oeffentliche Assets verwenden.
+- CSS mit `import 'cigs-viewer/styles.css'` laden.
+- CSS-Variablen: `--civ-background`, `--civ-foreground`, `--civ-accent`,
+  `--civ-aspect-ratio` (Standard `16 / 9`).
+- Normale Bilder mit `object-fit: contain`, keine Verzerrung oder 3D-Projektion.
+- Maus, Touch, Stift, Pfeiltasten, Home/End; vertikales Scrollen bleibt erlaubt.
+- Standardmaessig zwei Nachbarbilder statt der gesamten Sequenz; inaktive Ansicht
+  wird nicht vorgeladen. `preloadRadius={0}` deaktiviert Preloading.
+- `showThumbnails` mit passender `thumbnailQuality` kombinieren; der Service muss
+  die gewaehlte Aufloesung bereitstellen. Browser-Cache und Server-Cache-Header
+  bestimmen die Wiederverwendung; kein unbegrenzter eigener Decoded-Image-Cache.
+- ESM-Entry behaelt `'use client'`, keine DOM-Zugriffe beim Server-Render.
+  In Next.js sind `ssr: false` und `transpilePackages` nicht erforderlich.
+  Konfiguration und Kameras sind serialisierbar; Callbacks/Store-Anbindung
+  gehoeren in ein Client Component.
+- Host verantwortet CDN, CSP, Autorisierung und den Render-Service.
+  Keine Secrets in `configuration` oder URLs uebergeben.
 
-Der Host verantwortet CDN, CORS/CSP, Berechtigungen und URL-Erzeugung. Keine
-privaten API-Schluessel in Bild-URLs uebergeben. Keine externen Skripte, Fonts,
-Telemetrie oder Requests zu fest eingebauten Hosts.
+Nicht enthalten: Streaming, Fisheye, WebGL, 3D-Hotspots, Kamera-Fokusanimationen,
+Zoom/Panning, 3D-Sitzkonfiguration, Grid- oder Fullscreen-Praesentationsmodus.
 
-## Entwicklung und lokale Integration
+## Migration von 0.1.x
 
-Dieses Repository ist ein eigenstaendiges npm-Projekt.
-`jsdom` ist ausschliesslich eine Dev Dependency fuer DOM-Interaktionstests; der
-Test-Runner ist Node.js `node:test`. TypeScript und ESLint verwenden die bereits
-im Repository eingesetzten Werkzeuge.
+Ab **0.2.0** ersetzen `configuration`, `baseUrl`, `exteriorCameras` und
+`interiorCameras` die bisherigen `exteriorFrames`-/`interiorFrames`-Props.
+Die Host-App braucht keine URL-Builder mehr. `thumbnailSrc` wird durch
+`thumbnailQuality` ersetzt. Der Komponentenname `ConfiguratorImageViewer`
+und die Navigations-Callbacks bleiben bestehen; Frames enthalten jetzt die Kamera-ID.
+
+## Entwicklung und lokale Installation
 
 ```bash
 git clone git@github.com:wus-digital/cigs-viewer.git
@@ -218,30 +238,20 @@ npm pack --dry-run
 npm pack
 
 # In einer separaten React-App:
-npm install /absoluter/pfad/cigs-viewer-0.1.0.tgz
+npm install /absoluter/pfad/cigs-viewer-0.2.0.tgz
 ```
 
-`npm test` baut zuerst und testet die erzeugten ESM-Dateien. `npm pack` baut ueber
-`prepack` neu. Das Tarball enthaelt nur `dist`, README und Paketmetadaten, keine
-App-Dateien, Umgebungsdateien, Testdaten oder Produktbilder.
+`npm test` baut mit TypeScript, prueft den oeffentlichen Typvertrag und fuehrt
+Node-/JSDOM-Tests auf den erzeugten ESM-Dateien aus. `npm pack` baut erneut.
+Das Tarball enthaelt nur `dist`, README und Metadaten, keine Host-App oder Assets.
 
 ## Veroeffentlichung
 
-1. Veroeffentlichungsrechte fuer den npm-Namen `cigs-viewer` pruefen.
-   Das GitHub-Repository reserviert nicht automatisch den gleichnamigen npm-Namen.
-2. Lizenz entscheiden. `UNLICENSED` vergibt bewusst **keine** Open-Source-Rechte;
-   vor oeffentlicher Nutzung die gewuenschten Lizenzbedingungen hinterlegen.
-3. Bei Namensaenderungen den Lockfile mit `npm install --package-lock-only`
-   aktualisieren; Beispiele/Imports anpassen.
-4. `npm ci && npm run lint && npm test && npm pack --dry-run` ausfuehren.
-5. Version bei Bedarf mit `npm version patch --no-git-tag-version` erhoehen.
-6. Nach Review des Paketumfangs mit dem berechtigten npm-Konto veroeffentlichen:
+1. Rechte fuer den npm-Namen `cigs-viewer` pruefen; GitHub reserviert den Namen nicht.
+2. Lizenz festlegen: `UNLICENSED` vergibt bewusst keine Open-Source-Rechte.
+3. `npm ci && npm run lint && npm test && npm pack --dry-run`.
+4. Bei Bedarf Version mit `npm version patch --no-git-tag-version` erhoehen.
+5. Nach Freigabe: `npm login` und `npm publish --access public`.
 
-```bash
-npm login
-npm publish --access public
-```
-
-`prepublishOnly` fuehrt Lint und Tests aus. Fuer CI npm Trusted Publishing bzw.
-CI-Secrets und die passende npm-Konfiguration verwenden, keine Tokens committen.
-Es wurde kein Paket automatisch in eine Registry veroeffentlicht.
+`prepublishOnly` fuehrt Lint und Tests aus. Fuer CI Trusted Publishing bzw.
+CI-Secrets verwenden, keine Tokens committen. Kein automatisches npm-Publishing.

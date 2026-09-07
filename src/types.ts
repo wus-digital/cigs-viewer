@@ -2,8 +2,34 @@ import type { CSSProperties } from 'react';
 
 export type ViewerViewMode = 'exterior' | 'interior';
 
+export type RenderConfiguration = Readonly<
+  Record<string, string | number | null | undefined>
+>;
+
+export type RenderQuality = 'FHD' | 'WQHD' | '4K' | '4KHQ' | '8K' | '8KHQ';
+
+export interface ViewerCamera {
+  /** Exact filename camera token, e.g. C360_001. Array order defines swipe order. */
+  id: string;
+  label?: string;
+}
+
+export interface ViewerRenderOptions {
+  configuration: RenderConfiguration;
+  /** Absolute HTTP(S) URL or root-relative directory; no query string or hash. */
+  baseUrl: string;
+  exteriorCameras: readonly ViewerCamera[];
+  interiorCameras: readonly ViewerCamera[];
+  quality?: RenderQuality;
+  /** Optional thumbnail quality, using the same configuration and camera. */
+  thumbnailQuality?: RenderQuality;
+  /** Defaults match the existing CIGS render filters. [] disables a view's filter. */
+  omittedConfigurationKeys?: Partial<Record<ViewerViewMode, readonly string[]>>;
+}
+
 export interface ViewerFrame {
   src: string;
+  cameraId: string;
   alt?: string;
   thumbnailSrc?: string;
 }
@@ -28,14 +54,14 @@ export interface ViewerLabels {
   instructions: string;
 }
 
-export interface ConfiguratorImageViewerProps {
-  exteriorFrames: readonly ViewerFrame[];
-  interiorFrames: readonly ViewerFrame[];
+interface ViewerControlsProps {
   viewMode?: ViewerViewMode;
   defaultViewMode?: ViewerViewMode;
   onViewModeChange?: (viewMode: ViewerViewMode) => void;
   /** Zero-based index in the active view. Pair with onFrameChange when controlled. */
   frameIndex?: number;
+  /** Controlled camera ID in the active view; use instead of frameIndex. */
+  cameraId?: string;
   defaultFrameIndex?: number;
   onFrameChange?: (change: ViewerFrameChange) => void;
   onImageError?: (error: Error, change: ViewerFrameChange) => void;
@@ -48,4 +74,12 @@ export interface ConfiguratorImageViewerProps {
   labels?: Partial<ViewerLabels>;
   className?: string;
   style?: CSSProperties;
+}
+
+export interface ConfiguratorImageViewerProps
+  extends ViewerRenderOptions, ViewerControlsProps {}
+
+export interface ImageFrameViewerProps extends ViewerControlsProps {
+  exteriorFrames: readonly ViewerFrame[];
+  interiorFrames: readonly ViewerFrame[];
 }

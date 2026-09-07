@@ -1,7 +1,7 @@
 {
   "name": "cigs-viewer",
-  "version": "0.1.0",
-  "description": "Framework-independent React image sequence viewer for exterior and interior previews.",
+  "version": "0.2.0",
+  "description": "React viewer generating exterior and interior image sequences from CIGS configuration and cameras.",
   "license": "UNLICENSED",
   "repository": {
     "type": "git",
@@ -32,7 +32,7 @@
   "scripts": {
     "build": "node scripts/clean.mjs && tsc -p tsconfig.json && node scripts/copy-styles.mjs",
     "lint": "eslint src tests scripts",
-    "test": "npm run build && node --test tests/*.test.mjs",
+    "test": "npm run build && tsc -p tests/tsconfig.json && node --test tests/*.test.mjs",
     "prepack": "npm run build",
     "prepublishOnly": "npm run lint && npm test"
   },

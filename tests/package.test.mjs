@@ -7,8 +7,10 @@ import { ConfiguratorImageViewer } from '../dist/index.js';
 import { adjacentSources, normalizeFrame } from '../dist/frames.js';
 
 const props = {
-  exteriorFrames: [{ src: '/exterior.webp' }],
-  interiorFrames: [{ src: '/interior.webp' }],
+  baseUrl: '/renders',
+  configuration: { B: 'GT3RS', M: '01' },
+  exteriorCameras: [{ id: 'C360_001' }],
+  interiorCameras: [{ id: 'CINT_DASH' }],
 };
 
 test('ESM entry is an SSR-safe client boundary with typed exports and no application dependencies', async () => {
@@ -16,7 +18,7 @@ test('ESM entry is an SSR-safe client boundary with typed exports and no applica
   const html = renderToString(
     React.createElement(ConfiguratorImageViewer, props)
   );
-  assert.match(html, /src="\/exterior.webp"/);
+  assert.match(html, /src="\/renders\/BGT3RS_M01_C360_001_PQM-FHD.webp"/);
   assert.doesNotMatch(html, /canvas|iframe|video/);
   const entry = await readFile(
     new URL('../dist/index.js', import.meta.url),
@@ -53,7 +55,11 @@ test('invalid options fail explicitly, while out-of-range indices are safely cla
     { frameIndex: -1 },
     { defaultFrameIndex: 0.2 },
     { viewMode: 'panorama' },
-    { exteriorFrames: [{ src: '' }] },
+    { exteriorCameras: [{ id: '' }] },
+    { cameraId: 'unknown' },
+    { cameraId: 'C360_001', frameIndex: 0 },
+    { baseUrl: '' },
+    { configuration: {} },
   ]) {
     assert.throws(() =>
       renderToString(
@@ -68,7 +74,7 @@ test('invalid options fail explicitly, while out-of-range indices are safely cla
         frameIndex: 100,
       })
     ),
-    /exterior.webp/
+    /BGT3RS_M01_C360_001_PQM-FHD.webp/
   );
 });
 
