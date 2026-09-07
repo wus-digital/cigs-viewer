@@ -13,4 +13,7 @@ export const defaultLabels: ViewerLabels = {
   frames: 'Choose an image',
   instructions:
     'Swipe horizontally or use the arrow keys. Home and End select the first and last image.',
+  resetZoom: 'Reset zoom',
+  zoomInstructions:
+    'Use the mouse wheel to zoom, then drag to pan. Press Escape to reset.',
 };

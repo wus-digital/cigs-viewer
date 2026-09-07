@@ -22,9 +22,12 @@ export function ImageFrameViewer({
   onFrameChange,
   onImageError,
   loop = true,
+  dragMode = 'slide',
   pixelsPerFrame = 24,
-  preloadRadius = 1,
+  preloadRadius = 'all',
   showThumbnails = false,
+  enableZoom = false,
+  showDebug = false,
   labels: customLabels,
   className,
   style,
@@ -34,7 +37,21 @@ export function ImageFrameViewer({
     exterior: defaultFrameIndex,
     interior: defaultFrameIndex,
   });
-  const activeMode = viewMode ?? internalMode;
+  const requestedMode = viewMode ?? internalMode;
+  const activeMode =
+    viewMode === undefined
+      ? requestedMode === 'exterior' &&
+        !exteriorFrames.length &&
+        interiorFrames.length
+        ? 'interior'
+        : requestedMode === 'interior' &&
+            !interiorFrames.length &&
+            exteriorFrames.length
+          ? 'exterior'
+          : requestedMode
+      : requestedMode;
+  if (viewMode === undefined && activeMode !== internalMode)
+    setInternalMode(activeMode);
 
   useMemo(() => {
     validateFrames(exteriorFrames, 'exteriorFrames');
@@ -42,8 +59,18 @@ export function ImageFrameViewer({
   }, [exteriorFrames, interiorFrames]);
   validateInteger(defaultFrameIndex, 'defaultFrameIndex', 0);
   if (frameIndex !== undefined) validateInteger(frameIndex, 'frameIndex', 0);
-  validateInteger(preloadRadius, 'preloadRadius', 0, 4);
+  if (preloadRadius !== 'all')
+    validateInteger(preloadRadius, 'preloadRadius', 0, 4);
   validateInteger(pixelsPerFrame, 'pixelsPerFrame', 1);
+  if (typeof enableZoom !== 'boolean') {
+    throw new TypeError('enableZoom must be a boolean.');
+  }
+  if (typeof showDebug !== 'boolean') {
+    throw new TypeError('showDebug must be a boolean.');
+  }
+  if (dragMode !== 'slide' && dragMode !== 'sequence') {
+    throw new TypeError('dragMode must be slide or sequence.');
+  }
   if (activeMode !== 'exterior' && activeMode !== 'interior') {
     throw new TypeError('viewMode must be exterior or interior.');
   }
@@ -67,6 +94,17 @@ export function ImageFrameViewer({
     frames.length,
     false
   );
+  if (indices[activeMode] !== currentIndex) {
+    setIndices((current) => ({ ...current, [activeMode]: currentIndex }));
+  }
+  const alternateMode = activeMode === 'exterior' ? 'interior' : 'exterior';
+  const alternateFrames =
+    alternateMode === 'exterior' ? exteriorFrames : interiorFrames;
+  const alternateIndex = normalizeFrame(
+    frameIndex ?? indices[alternateMode],
+    alternateFrames.length,
+    false
+  );
 
   function selectFrame(index: number) {
     const nextIndex = normalizeFrame(index, frames.length, loop);
@@ -86,32 +124,34 @@ export function ImageFrameViewer({
 
   return (
     <div
-      className={['civ', className].filter(Boolean).join(' ')}
+      className={[
+        'civ box-border w-full min-w-0 bg-[var(--civ-background)] [font-family:inherit] text-[var(--civ-foreground)] [--civ-accent:#176bba] [--civ-aspect-ratio:16/9] [--civ-background:#f4f4f4] [--civ-foreground:#181818] [&_*]:box-border',
+        className,
+      ]
+        .filter(Boolean)
+        .join(' ')}
       style={style}
       role='group'
       aria-label={labels.viewer}
     >
-      <div className='civ__views' role='group' aria-label={labels.viewer}>
-        {(['exterior', 'interior'] as const).map((mode) => (
-          <button
-            key={mode}
-            type='button'
-            aria-pressed={activeMode === mode}
-            onClick={() => selectMode(mode)}
-          >
-            {labels[mode]}
-          </button>
-        ))}
-      </div>
       <ImageSequence
-        key={activeMode}
+        key={`${activeMode}:${dragMode}`}
         frames={frames}
+        alternateFrame={
+          frames.length ? alternateFrames[alternateIndex] : undefined
+        }
+        onSwitchView={() =>
+          selectMode(activeMode === 'exterior' ? 'interior' : 'exterior')
+        }
         viewMode={activeMode}
         frameIndex={currentIndex}
         loop={loop}
+        dragMode={dragMode}
         pixelsPerFrame={pixelsPerFrame}
         preloadRadius={preloadRadius}
         showThumbnails={showThumbnails}
+        enableZoom={enableZoom}
+        showDebug={showDebug}
         labels={labels}
         onSelect={selectFrame}
         onImageError={onImageError}

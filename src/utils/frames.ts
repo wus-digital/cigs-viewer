@@ -1,5 +1,9 @@
 import type { ViewerFrame } from '../types/viewer.js';
 
+export function frameIdentity(frame: ViewerFrame, index: number): string {
+  return frame.cameraId ?? String(index);
+}
+
 export function normalizeFrame(
   index: number,
   count: number,
@@ -11,21 +15,35 @@ export function normalizeFrame(
     : Math.max(0, Math.min(index, count - 1));
 }
 
-export function adjacentSources(
+export function adjacentSourceBatches(
   frames: readonly ViewerFrame[],
   index: number,
   radius: number,
   loop: boolean
-): string[] {
+): string[][] {
   const sources = new Set<string>();
-  for (let offset = 1; offset <= radius; offset++) {
+  const batches: string[][] = [];
+  for (
+    let offset = 1;
+    offset <= Math.min(radius, frames.length - 1);
+    offset++
+  ) {
+    const batch: string[] = [];
     for (const direction of [-1, 1]) {
       const frame =
         frames[normalizeFrame(index + direction * offset, frames.length, loop)];
-      if (frame && frame.src !== frames[index]?.src) sources.add(frame.src);
+      if (
+        frame &&
+        frame.src !== frames[index]?.src &&
+        !sources.has(frame.src)
+      ) {
+        sources.add(frame.src);
+        batch.push(frame.src);
+      }
     }
+    if (batch.length) batches.push(batch);
   }
-  return [...sources];
+  return batches;
 }
 
 export function validateFrames(

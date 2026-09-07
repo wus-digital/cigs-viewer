@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import type { RenderConfiguration } from 'cigs-viewer';
 import { parseConfiguration, type ConfigurationEntry } from '../configuration';
+import { buttonBaseStyles, buttonStyles, inputStyles, paragraphStyles } from '../utilities.js';
 
 interface Props {
   initialConfiguration: RenderConfiguration;
@@ -37,17 +38,18 @@ export function ConfigurationEditor({ initialConfiguration, onApply }: Props) {
         if (result.configuration) onApply(result.configuration);
       }}
     >
-      <p id='configuration-help'>
+      <p id='configuration-help' className={paragraphStyles}>
         Keys und Values bearbeiten, Paare hinzufuegen oder loeschen. Erst mit
         &quot;Konfiguration anwenden&quot; werden neue Bilder geladen.
       </p>
-      <div className='configuration-entries'>
+      <div className='configuration-entries grid gap-3'>
         {entries.map((entry, index) => (
-          <div className='configuration-row' key={entry.id}>
-            <label>
+          <div className='configuration-row grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-end gap-2' key={entry.id}>
+            <label className='m-0 block min-w-0 text-sm font-semibold'>
               Key {index + 1}
               <input
                 type='text'
+                className={inputStyles}
                 value={entry.key}
                 onChange={(event) =>
                   updateEntry(entry.id, 'key', event.target.value)
@@ -56,10 +58,11 @@ export function ConfigurationEditor({ initialConfiguration, onApply }: Props) {
                 spellCheck={false}
               />
             </label>
-            <label>
+            <label className='m-0 block min-w-0 text-sm font-semibold'>
               Value {index + 1}
               <input
                 type='text'
+                className={inputStyles}
                 value={entry.value}
                 onChange={(event) =>
                   updateEntry(entry.id, 'value', event.target.value)
@@ -70,6 +73,7 @@ export function ConfigurationEditor({ initialConfiguration, onApply }: Props) {
             </label>
             <button
               type='button'
+              className={`mt-3 ${buttonStyles}`}
               aria-label={`Paar ${index + 1} loeschen`}
               onClick={() => {
                 setEntries((current) =>
@@ -84,10 +88,11 @@ export function ConfigurationEditor({ initialConfiguration, onApply }: Props) {
         ))}
       </div>
       {entries.length === 0 && (
-        <p role='status'>Keine Key-Value-Paare vorhanden.</p>
+        <p role='status' className={paragraphStyles}>Keine Key-Value-Paare vorhanden.</p>
       )}
       <button
         type='button'
+        className={`mt-3 ${buttonStyles}`}
         onClick={() => {
           const id = nextId.current++;
           setEntries((current) => [...current, { id, key: '', value: '' }]);
@@ -96,8 +101,8 @@ export function ConfigurationEditor({ initialConfiguration, onApply }: Props) {
       >
         + Paar hinzufuegen
       </button>
-      {error && <p role='alert'>{error}</p>}
-      <button type='submit' aria-describedby='configuration-help'>
+      {error && <p role='alert' className='my-4 leading-[1.6] text-[#a61919]'>{error}</p>}
+      <button type='submit' aria-describedby='configuration-help' className={`mt-3 border-[#176bba] bg-[#176bba] px-3 py-2.5 text-white ${buttonBaseStyles}`}>
         Konfiguration anwenden
       </button>
     </form>

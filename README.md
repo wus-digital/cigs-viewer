@@ -3,7 +3,7 @@
 Repository: [wus-digital/cigs-viewer](https://github.com/wus-digital/cigs-viewer).
 
 React-/TypeScript-Viewer fuer den CIGS-Render-Service. Der Viewer erhaelt eine
-`configuration` als Key-Value-Objekt sowie Exterieur- und Interieur-Kameras und
+`configuration` als Key-Value-Objekt sowie eine optionale `cameras`-Auswahl und
 baut daraus alle Bildpfade selbst. **Keine manuellen Bild-URL-Arrays.**
 
 Beide Ansichten verwenden normale durchwischbare Bilder: kein Unreal, Arcware,
@@ -18,13 +18,33 @@ npm install cigs-viewer react react-dom
 ```
 
 React/React DOM 18.2+ oder 19.x, ESM und TypeScript-Deklarationen.
+Fuer das Styling wird **Tailwind CSS 4** im Build der Host-App benoetigt.
 Eine Veroeffentlichung auf GitHub ist noch keine Veroeffentlichung auf npm.
+
+### Tailwind einbinden
+
+Das Paket enthaelt ausschliesslich Tailwind-Utilities, **kein eigenes Stylesheet**.
+Ein bisheriger Import von `cigs-viewer/styles.css` muss entfernt werden.
+In der bestehenden Tailwind-Einstiegsdatei der Host-App das Paket als Quelle
+registrieren (hier liegt die Datei direkt in `src/`):
+
+```css
+@import "tailwindcss";
+@source "../node_modules/cigs-viewer/dist";
+```
+
+Der `@source`-Pfad ist relativ zu dieser Einstiegsdatei und muss gegebenenfalls
+angepasst werden. `node_modules` wird nicht automatisch gescannt. Auch bei
+Installation per Tarball oder lokalem `file:`-Verweis muss der gebaute Paketinhalt
+gescannt werden, einschliesslich `dist/constants/`.
+Die Host-App bindet ihren eigenen generierten Tailwind-Output wie gewohnt ein.
+Ohne Tailwind-Build bzw. ohne diese Quellenregistrierung ist der Viewer ungestaltet.
+Die Demo zeigt die Integration mit dem offiziellen `@tailwindcss/vite`-Plugin.
 
 ## Verwendung
 
 ```tsx
 import { CigsViewer } from 'cigs-viewer';
-import 'cigs-viewer/styles.css';
 
 const configuration = {
   B: '01',
@@ -38,6 +58,7 @@ export function Preview() {
     <CigsViewer
       baseUrl='https://renders.example.com'
       configuration={configuration}
+      cameras={['C1', 'C2', 'C6']}
       quality='FHD'
       labels={{
         viewer: 'Fahrzeugansicht',
@@ -55,17 +76,37 @@ export function Preview() {
 Die Host-App kann ihren ENV-Wert dafuer uebergeben; das Paket liest keine
 projektspezifischen Umgebungsvariablen und verwendet keinen fest eingebauten Host.
 
-### Default-Kameras
+### System-Kameras und Auswahl
 
-Ohne Kamera-Props gelten in genau dieser Swipe-Reihenfolge:
+Der feste System-Katalog enthaelt diese maximal verfuegbaren Kameras:
 
 - **Exterieur:** `C1`, `C2`, `C3`, `C4`, `C5`, `C9`, `C10`
 - **Interieur:** `C6`, `C7`, `C8`, `C11`, `C12`, `C13`, `C14`
 
-Eigene `exteriorCameras`-/`interiorCameras`-Arrays von `{ id, label? }`
-ueberschreiben die jeweilige Ansicht unabhaengig. Ein explizites `[]` laesst
-die Ansicht leer. Die unveraenderlichen Defaults sind als
-`DEFAULT_EXTERIOR_CAMERAS` und `DEFAULT_INTERIOR_CAMERAS` exportiert.
+Mit `cameras={['C1', 'C6']}` werden nur diese IDs verwendet. Die Zuordnung zu
+Exterieur/Interieur erfolgt automatisch, die Reihenfolge innerhalb einer Ansicht
+folgt der uebergebenen Liste. Unbekannte oder doppelte IDs werden abgelehnt.
+Ohne `cameras` wird der komplette Katalog verwendet; `cameras={[]}` bleibt leer.
+
+```tsx
+// Einzelbild, ohne Swipe, Navigationspfeile oder Ansichtswechsel:
+<CigsViewer baseUrl={baseUrl} configuration={configuration} cameras={['C1']} />
+// Nur Interieur; ohne kontrolliertes viewMode automatisch die richtige Ansicht:
+<CigsViewer baseUrl={baseUrl} configuration={configuration} cameras={['C6']} />
+```
+
+Ein Ansichtswechsel erscheint nur, wenn beide Bereiche mindestens eine Kamera
+enthalten. Bei einer Kamera pro Ansicht erfolgt der Wechsel ueber dieses
+Thumbnail, nicht durch Wischen. Zoom und Verschieben funktionieren auch beim Einzelbild.
+Bei kontrolliertem `viewMode`/`cameraId` muss der Host weiterhin eine zur Auswahl
+passende Ansicht und Kamera liefern.
+
+`EXTERIOR_CAMERAS` und `INTERIOR_CAMERAS` exportieren den unveraenderlichen Katalog;
+`ViewerCameraId` ist der zugehoerige TypeScript-ID-Typ. Die bisherigen
+`DEFAULT_EXTERIOR_CAMERAS`/`DEFAULT_INTERIOR_CAMERAS` bleiben als Aliase erhalten.
+Die alten `exteriorCameras`/`interiorCameras`-Props bleiben fuer bestehende
+Integrationen verfuegbar, sind aber veraltet und duerfen nicht mit `cameras`
+kombiniert werden. Neue Integrationen verwenden nur die gemeinsame Auswahl.
 
 ### So werden die Pfade gebaut
 
@@ -123,7 +164,6 @@ import {
   type ViewerRenderOptions,
   type ViewerViewMode,
 } from 'cigs-viewer';
-import 'cigs-viewer/styles.css';
 
 export function ControlledPreview(props: ViewerRenderOptions) {
   const [viewMode, setViewMode] = useState<ViewerViewMode>('exterior');
@@ -164,8 +204,8 @@ Host-App kontrollierte Kamera-IDs ebenfalls aktualisieren.
 | --- | --- | --- |
 | `configuration` | erforderlich | `Readonly<Record<string, string \| number \| null \| undefined>>` |
 | `baseUrl` | erforderlich | HTTP(S)-Adresse oder Root-relatives Verzeichnis wie `/renders` |
-| `exteriorCameras` | `C1, C2, C3, C4, C5, C9, C10` | Optionales Array von `{ id, label? }` |
-| `interiorCameras` | `C6, C7, C8, C11, C12, C13, C14` | Optionales Array von `{ id, label? }` |
+| `cameras` | alle System-Kameras | `readonly ViewerCameraId[]`, z. B. `['C1', 'C6']`; `[]` zeigt den Leerzustand |
+| `exteriorCameras`, `interiorCameras` | jeweiliger Katalog | Veraltete separate Kamera-Arrays; nicht mit `cameras` kombinieren |
 | `quality` | `FHD` | CIGS-Qualitaet der dargestellten Bilder und Preloads |
 | `thumbnailQuality` | - | Optionale Thumbnail-Qualitaet; ebenfalls automatisch erzeugte Pfade |
 | `omittedConfigurationKeys` | Ext: `AKZI`, `DHC`; Int: `AKZ` | Optionale Filter pro Ansicht |
@@ -176,9 +216,12 @@ Host-App kontrollierte Kamera-IDs ebenfalls aktualisieren.
 | `onFrameChange` | - | `({ viewMode, frameIndex, frame }) => void`; `frame` enthaelt `cameraId`, `src`, optional `alt`, `thumbnailSrc` |
 | `onImageError` | - | `(error, change) => void` fuer das angezeigte Bild |
 | `loop` | `true` | Zyklische Navigation |
-| `pixelsPerFrame` | `24` | Positive ganzzahlige Drag-Distanz in CSS-Pixeln |
-| `preloadRadius` | `1` | 0-4 Nachbarbilder pro Richtung, nur aktive Ansicht |
-| `showThumbnails` | `false` | Thumbnail-Leiste; ohne `thumbnailQuality` nur nummerierte Buttons |
+| `dragMode` | `'slide'` | Echter Bild-Slider; `'sequence'` aktiviert das bisherige kontinuierliche Durchschalten |
+| `pixelsPerFrame` | `24` | Positive ganzzahlige Drag-Distanz in CSS-Pixeln, nur fuer `dragMode='sequence'` |
+| `preloadRadius` | `'all'` | Gesamte aktive Ansicht in Nachbarpaaren; alternativ 0-4 Nachbarbilder pro Richtung |
+| `showThumbnails` | `false` | Kamera-Thumbnails bei mehreren Kameras der aktiven Ansicht; ohne `thumbnailQuality` werden geladene Hauptbilder wiederverwendet |
+| `enableZoom` | `false` | Mausrad-Zoom 1x-4x mit gezieltem 4K-Nachladen; Ziehen verschiebt den Ausschnitt |
+| `showDebug` | `false` | Debug-Anzeige unter dem Bild: Kamera, tatsaechlich dargestellter Bildpfad, Originalaufloesung und Zoomstufe |
 | `labels` | Englisch | Teilmenge von `ViewerLabels`, inklusive Lade-, Fehler-, Retry- und Anleitungstexten |
 | `className`, `style` | - | Gestaltung des Containers |
 
@@ -197,18 +240,125 @@ und URL-Steuerzeichen sind in Konfigurationswerten oder Kamera-IDs nicht erlaubt
 `baseUrl` darf weder Zugangsdaten noch Querystring oder Hash enthalten.
 Bildladefehler sind sichtbar, werden gemeldet und koennen erneut versucht werden.
 
+### Bildnavigation und Zoom
+
+```tsx
+<CigsViewer
+  baseUrl="https://cigs.elferplatz.com"
+  configuration={{ B: '01', M: '01', P: '070707', PMV: '100' }}
+  cameras={['C1', 'C2', 'C6']}
+  showThumbnails
+  enableZoom
+/>
+```
+
+Pfeile liegen links und rechts im Bild, die Thumbnail-Leiste am unteren Bildrand.
+Der Bildzaehler ist nur noch fuer Screenreader vorhanden. Der Ansichtswechsel
+steht im Exterieur als letztes Interieur-Thumbnail und im Interieur als erstes
+Exterieur-Thumbnail. Die Vorschau zeigt die zuletzt ausgewaehlte Kamera der anderen Ansicht;
+der Wechsel behaelt wie bisher deren letzte Auswahl bei. Ohne Kamera-Thumbnails
+bleibt bei zwei verfuegbaren Bereichen ein beschrifteter Ansichtswechsel verfuegbar.
+Fehlt einer der Bereiche, wird dieser Schalter nicht eingeblendet.
+Die Thumbnail-Leiste legt keinen Verlauf oder Schleier ueber das Hauptbild.
+Bei nur einer Kamera in der aktiven Ansicht wird deren Kamera-Thumbnail
+automatisch ausgeblendet und nicht separat vorgeladen. Der Ansichtswechsel
+bleibt verfuegbar, wenn beide Bereiche Kameras enthalten.
+
+Pfeile, Tastatur und Thumbnails (einschliesslich Ansichtswechsel) verwenden
+dieselbe Wisch-/Parallax-Animation wie Drag-Gesten. Ein Thumbnail-Sprung zeigt
+direkt die ausgewaehlte Zielkamera im Hintergrund, ohne Zwischenkameras
+durchzuschalten. Schnelle Eingaben schliessen die vorherige Auswahl ab und
+animieren von dort weiter. Auswahl-Callbacks werden am Ende der Animation
+ausgeloest; bei `prefers-reduced-motion` wird sofort gewechselt.
+Klick- und Tastaturwechsel dauern 600 ms mit sanftem Anlauf und anschliessender
+Beschleunigung. Das Einrasten nach einem echten Swipe bleibt bei 220 ms.
+
+`enableZoom` aktiviert das Mausrad nur ueber der Bildflaeche, nicht ueber den
+Bedienelementen. Gezoomt wird um die Mausposition, zwischen 1x und 4x.
+Ab vergroesserter Darstellung verschiebt Ziehen den Ausschnitt statt Kameras
+weiterzuschalten; Pfeile, Thumbnails und Tastatur bleiben bedienbar.
+Escape oder "Reset zoom" setzen auf 1x zurueck. Kamera-, Ansichts- und
+Konfigurationswechsel, Groessenaenderungen oder `enableZoom={false}` setzen
+den Zoom ebenfalls zurueck. Ohne Zoom-Prop bleibt normales Seitenscrollen erhalten;
+Strg-/Cmd-Mausrad bleibt immer dem Browser vorbehalten.
+`labels.resetZoom` und `labels.zoomInstructions` sind lokalisierbar.
+
+`showDebug` ist in der Demo aktiviert. Die Anzeige liest die Originalabmessungen
+(`naturalWidth`/`naturalHeight`) des sichtbaren Bildes, nicht die CSS-Groesse.
+Solange ein Ersatzbild oder 4K-Bild noch laedt, zeigt sie weiterhin die Daten
+des dargestellten Fallback-Bildes. Ohne geladenes Bild stehen Pfad und Aufloesung
+auf `-`. Die Texte sind ueber `labels.debug`, `debugCamera`, `debugImage`,
+`debugResolution` und `debugZoom` anpassbar.
+
+Beim Hineinzoomen wird ausschliesslich fuer den aktuellen Frame dessen
+`PQM-4K`-Bild angefordert, sobald das Basisbild geladen ist. Bis die hoehere
+Qualitaet bereitsteht, bleibt das Basisbild sichtbar. Kameras und Thumbnails
+werden nicht pauschal in 4K vorgeladen. Bereits in 4K oder hoeher angeforderte
+Basisbilder werden nicht herabgestuft oder doppelt geladen.
+Ein fertig geladenes Zoom-Bild wird fuer erneutes Zoomen desselben Frames
+wiederverwendet. Laufende Upgrades werden bei Zoom-Ende, Navigation oder
+Konfigurationswechsel verworfen; veraltete Antworten werden ignoriert.
+Bei Fehlern bleiben Basisbild und Retry bedienbar, `onImageError` erhaelt die
+tatsaechlich fehlgeschlagene Zoom-URL. Das Upgrade ist eine priorisierte
+Vordergrund-Anfrage, unabhaengig von den normalen Hintergrund-Paaren.
+
 ## Styling, Performance und Next.js
 
-- CSS mit `import 'cigs-viewer/styles.css'` laden.
+- Styling ausschliesslich ueber Tailwind-Utilities; die Quellenregistrierung
+  oben ist erforderlich. Die `civ__*`-Klassen sind nur DOM-/Debug-Hooks,
+  keine Stylesheet-Selektoren.
 - CSS-Variablen: `--civ-background`, `--civ-foreground`, `--civ-accent`,
   `--civ-aspect-ratio` (Standard `16 / 9`).
+- Kontinuierliche Zoom-/Swipe-Transformationen und Bild-Ladestatus bleiben
+  dynamische Inline-Werte; statische Gestaltung und Animationen sind Tailwind-Klassen.
 - Normale Bilder mit `object-fit: contain`, keine Verzerrung oder 3D-Projektion.
 - Maus, Touch, Stift, Pfeiltasten, Home/End; vertikales Scrollen bleibt erlaubt.
-- Standardmaessig zwei Nachbarbilder statt der gesamten Sequenz; inaktive Ansicht
-  wird nicht vorgeladen. `preloadRadius={0}` deaktiviert Preloading.
+- Im Standardmodus `dragMode='slide'` folgt nur das aktuelle Bild der horizontalen
+  Bewegung; das Zielbild liegt dahinter und startet um 20 % der Viewer-Breite
+  seitlich versetzt. Es bewegt sich mit einem Fuenftel der Drag-Strecke ins
+  Zentrum (Parallax). Beim Einrasten enden beide Bewegungen synchron.
+  Sobald eine horizontale Wischbewegung erkennbar ist (2 CSS-Pixel gegen Klickzittern),
+  reicht das Loslassen zum Einrasten einer Kamera in diese Richtung. Es gibt
+  keine Mindestdistanz relativ zur Viewer-Breite. Die letzte Bewegungsrichtung
+  entscheidet, auch wenn der Finger zum Startpunkt zurueckkehrt. Neue Gesten
+  waehrend des Einrastens schliessen den vorherigen Wechsel sofort ab und werden
+  nicht verworfen. Auch bei Capture-Verlust wird eine erkannte Geste uebernommen;
+  echte Pointer-Abbrueche (z. B. natives Scrollen) wechseln keine Kamera.
+  `prefers-reduced-motion` deaktiviert
+  die Einrast-Animation fuer alle Eingabearten.
+- Fuer das bisherige Scrubbing-Verhalten `dragMode='sequence'` setzen;
+  dort steuert `pixelsPerFrame` wie bisher die Empfindlichkeit.
+- Pro Viewer laedt zuerst der aktuelle Frame allein. Danach laden links 1 und
+  rechts 1 parallel, dann links 2 und rechts 2 parallel usw. bis zum Ende der
+  aktiven Ansicht. Das naechste Paar startet erst, wenn beide Bilder des
+  vorherigen Paars mit `load` oder `error` abgeschlossen sind. Es laufen maximal
+  zwei Hintergrund-Requests gleichzeitig; bereits geladene Bilder werden uebersprungen,
+  ohne Bilder aus unterschiedlichen Abstaenden zu einem neuen Paar zu mischen.
+  `loop` bestimmt das Verhalten an den Enden; doppelte URLs werden uebersprungen.
+  Neue Konfigurationen verwerfen ausstehende alte Requests. Ein Kamerawechsel
+  priorisiert den neu ausgewaehlten Frame; ein Retry pausiert die Hintergrund-Queue.
+- Die inaktive Kamerasequenz wird nicht vorgeladen. Nur das Ansichtswechsel-Thumbnail
+  wird bei `showThumbnails` zuletzt ueber dieselbe Queue geladen.
+  `preloadRadius={0}` deaktiviert
+  Hintergrund-Frames; 1-4 begrenzt den Abstand. Slider-Vorschauen starten keine
+  eigenen Requests: noch nicht geladene Nachbarn zeigen den Ladehinweis.
+- Separate Thumbnail-URLs laufen weiterhin einzeln durch dieselbe Queue, nach den Frame-URLs.
+  Bereits geladene identische URLs werden wiederverwendet. Bis dahin erscheinen
+  bei erstmaligem Laden nummerierte Kamera-Buttons statt parallel startender Requests.
+- Bei Konfigurationswechseln bleiben bereits geladene Bilder und Thumbnails
+  sichtbar, mit einem 20-%-Schwarzschleier bis zum fertigen Ersatz. Das gilt
+  auch fuer alte Nachbarbilder beim Wischen. Fehler lassen das alte Bild stehen;
+  die Fehler-/Retry-Anzeige bleibt bedienbar.
+- Geladene Ersatzbilder werden ueber 400 ms weich ueber das bisherige Bild eingeblendet,
+  statt es abrupt zu ersetzen. Das alte Bild bleibt waehrend des Crossfades
+  darunter erhalten. Erstbilder erscheinen ohne Einblenden aus einer leeren
+  Flaeche; normale Kamerawechsel behalten ihre Wischanimation.
+  Bei `prefers-reduced-motion` erfolgt der Austausch ohne Crossfade.
 - `showThumbnails` mit passender `thumbnailQuality` kombinieren; der Service muss
   die gewaehlte Aufloesung bereitstellen. Browser-Cache und Server-Cache-Header
-  bestimmen die Wiederverwendung; kein unbegrenzter eigener Decoded-Image-Cache.
+  bestimmen die Wiederverwendung. Neben der aktuellen Queue wird pro Kamera
+  maximal das letzte erfolgreiche Bild behalten, bis sein Ersatz geladen ist.
+  Es wird keine unbegrenzte Konfigurationshistorie gespeichert.
 - ESM-Entry behaelt `'use client'`, keine DOM-Zugriffe beim Server-Render.
   In Next.js sind `ssr: false` und `transpilePackages` nicht erforderlich.
   Konfiguration und Kameras sind serialisierbar; Callbacks/Store-Anbindung
@@ -243,17 +393,17 @@ Props und Verhalten bleiben unveraendert.
 src/
   index.ts                 Oeffentliche Paket-Exports (Client-Einstieg)
   components/              CigsViewer und interne Bild-/Sequenz-Komponenten
-  constants/               Default-Kameras und UI-Beschriftungen
+  constants/               Default-Kameras, UI-Beschriftungen und Tailwind-Utilities
   hooks/                   Pointer-/Swipe-Interaktion
-  styles/                  Viewer-Stylesheet
   types/                   Gemeinsame TypeScript-Typen und Props
   utils/                   Frame-Navigation, Validierung und Render-Pfade
 ```
 
 Interne Module importieren einander direkt, nicht ueber den oeffentlichen
-Einstieg. `dist/` spiegelt die Modulstruktur; das Build-Skript kopiert CSS
-weiterhin nach `dist/styles.css`. Die Consumer-Imports `cigs-viewer` und
-`cigs-viewer/styles.css` bleiben unveraendert.
+Einstieg. `dist/` spiegelt die Modulstruktur und enthaelt nur JavaScript und
+TypeScript-Deklarationen. Der Build erzeugt oder kopiert kein CSS.
+Alle Utility-Namen stehen vollstaendig im Quellcode, damit Tailwind sie auch
+im installierten Paket erkennen kann.
 
 ### Startbare Demo ohne npm-Veroeffentlichung
 
@@ -271,16 +421,23 @@ Die [Demo](./examples/demo/src/main.tsx) verwendet das Paket per
 `"cigs-viewer": "file:../.."`, also ohne Registry oder Veroeffentlichung.
 `npm run demo` baut die Bibliothek vor dem Start. Nach Aenderungen an der
 Bibliothek erneut `npm run build` ausfuehren bzw. die Demo neu starten.
+Nach neu hinzugefuegten Tailwind-Klassen in der Bibliothek die Demo neu starten,
+damit auch der Entwicklungsserver den Utility-Output neu erzeugt.
 Der Vite-Resolver dedupliziert React fuer die lokale Paketverknuepfung.
 
-- Beide Ansichten mit allen Default-Kameras, Swipe, Buttons und Thumbnails.
+- Kamera-Checkboxen fuer den gesamten System-Katalog sowie Presets **Alle**,
+  **Nur C1** und **Nur C6**. Die bisherige Demo-Auswahl ist initial vorausgewaehlt.
+- **Thumbnails anzeigen** ist initial aktiviert; **Mausrad-Zoom aktivieren**
+  ist initial deaktiviert. Beide Optionen sind umschaltbar.
 - Editierbare Key-Value-Liste, initial mit `B: '01'`, `M: '01'`,
   `P: '070707'` und `PMV: '100'`. Alle Keys und Values lassen sich bearbeiten;
   ueber **+ Paar hinzufuegen** und **Loeschen** laesst sich die Liste erweitern.
 - **Konfiguration anwenden** uebernimmt die Liste in Viewer und JSX-Beispiel.
   Unvollstaendige Paare, doppelte Keys und ungueltige Dateinamen-Tokens werden
   sichtbar abgewiesen; die zuvor angewendete Konfiguration bleibt erhalten.
-- Einblendung der aktuellen Kamera und des passenden JSX-Beispiels.
+- Links steht ausschliesslich die wiederverwendbare Viewer-Komponente. Das
+  JSX-Beispiel darunter enthaelt die aktuelle `cameras`-Liste und Optionen,
+  ergaenzt um Einzelkamera-Beispiele.
 - Feste Bildquelle **https://cigs.elferplatz.com**, ohne URL-Eingabe oder lokale
   Mock-Bilder. Die Demo benoetigt eine Verbindung zum Render-Service und sendet
   die angewendeten Konfigurationscodes als Bildpfade an diesen Host.

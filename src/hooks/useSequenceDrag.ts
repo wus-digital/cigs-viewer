@@ -11,9 +11,10 @@ interface Drag {
 }
 
 export function useSequenceDrag(
-  frameIndex: number,
   pixelsPerFrame: number,
-  onSelect: (index: number) => void
+  onSelect: (index: number) => void,
+  startFrame: () => number,
+  canDrag = true
 ) {
   const drag = useRef<Drag | null>(null);
 
@@ -27,13 +28,13 @@ export function useSequenceDrag(
 
   return {
     onPointerDown(event: PointerEvent<HTMLDivElement>) {
-      if (!event.isPrimary || event.button !== 0) return;
+      if (!canDrag || !event.isPrimary || event.button !== 0) return;
       event.currentTarget.focus({ preventScroll: true });
       drag.current = {
         pointerId: event.pointerId,
         x: event.clientX,
         y: event.clientY,
-        frame: frameIndex,
+        frame: startFrame(),
         step: 0,
         horizontal: false,
       };

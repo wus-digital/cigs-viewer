@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import React from 'react';
 import { renderToString } from 'react-dom/server';
 import { CigsViewer } from 'cigs-viewer';
-import { adjacentSources, normalizeFrame } from '../dist/utils/frames.js';
+import { adjacentSourceBatches, normalizeFrame } from '../dist/utils/frames.js';
 
 test('exports CigsViewer and ships only the renamed component module', async () => {
   const api = await import('cigs-viewer');
@@ -19,7 +19,6 @@ test('exports CigsViewer and ships only the renamed component module', async () 
     'hooks',
     'index.d.ts',
     'index.js',
-    'styles.css',
     'types',
     'utils',
   ]);
@@ -44,7 +43,7 @@ test('ESM entry is an SSR-safe client boundary with typed exports and no applica
   assert.equal(typeof window, 'undefined');
   const html = renderToString(React.createElement(CigsViewer, props));
   assert.match(html, /src="\/renders\/B01_M01_C360_001_PQM-FHD.webp"/);
-  assert.doesNotMatch(html, /canvas|iframe|video/);
+  assert.doesNotMatch(html, /<(?:canvas|iframe|video)\b/);
   const entry = await readFile(
     new URL('../dist/index.js', import.meta.url),
     'utf8'
@@ -73,15 +72,27 @@ test('ESM entry is an SSR-safe client boundary with typed exports and no applica
   }
 });
 
-test('public CSS subpath still ships the source stylesheet after reorganization', async () => {
+test('package uses scannable Tailwind utilities without shipping a stylesheet', async () => {
   const manifest = JSON.parse(
     await readFile(new URL('../package.json', import.meta.url), 'utf8')
   );
-  assert.equal(manifest.exports['./styles.css'], './dist/styles.css');
-  assert.equal(
-    await readFile(new URL('../dist/styles.css', import.meta.url), 'utf8'),
-    await readFile(new URL('../src/styles/viewer.css', import.meta.url), 'utf8')
+  assert.equal(manifest.exports['./styles.css'], undefined);
+  assert.equal(manifest.sideEffects, false);
+  const files = await readdir(new URL('../dist/', import.meta.url), {
+    recursive: true,
+  });
+  assert.ok(!files.some((file) => file.endsWith('.css')));
+  const utilities = await readFile(
+    new URL('../dist/constants/tailwind.js', import.meta.url),
+    'utf8'
   );
+  assert.match(utilities, /object-contain/);
+  assert.match(utilities, /focus-visible:outline/);
+  const html = renderToString(
+    React.createElement(CigsViewer, { ...props, showThumbnails: true })
+  );
+  assert.match(html, /aspect-\[var\(--civ-aspect-ratio\)\]/);
+  assert.doesNotMatch(html, /after:|bg-gradient|bg-linear/);
 });
 
 test('invalid options fail explicitly, while out-of-range indices are safely clamped', () => {
@@ -89,6 +100,8 @@ test('invalid options fail explicitly, while out-of-range indices are safely cla
     { preloadRadius: -1 },
     { preloadRadius: 5 },
     { pixelsPerFrame: 0 },
+    { dragMode: 'panorama' },
+    { enableZoom: 'true' },
     { frameIndex: NaN },
     { frameIndex: -1 },
     { defaultFrameIndex: 0.2 },
@@ -119,13 +132,18 @@ test('frame math handles wraparound, empty data and bounded preloading', () => {
   assert.equal(normalizeFrame(241, 120, true), 1);
   assert.equal(normalizeFrame(5, 0, true), 0);
   assert.equal(normalizeFrame(5, 2, false), 1);
-  assert.deepEqual(adjacentSources([], 0, 4, true), []);
+  assert.deepEqual(adjacentSourceBatches([], 0, 4, true), []);
   assert.deepEqual(
-    adjacentSources([{ src: 'a' }, { src: 'a' }], 0, 4, true),
+    adjacentSourceBatches([{ src: 'a' }, { src: 'a' }], 0, 4, true),
     []
   );
   assert.deepEqual(
-    adjacentSources([{ src: 'a' }, { src: 'b' }, { src: 'c' }], 0, 1, false),
-    ['b']
+    adjacentSourceBatches(
+      [{ src: 'a' }, { src: 'b' }, { src: 'c' }],
+      0,
+      1,
+      false
+    ),
+    [['b']]
   );
 });

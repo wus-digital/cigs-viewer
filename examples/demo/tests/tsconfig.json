@@ -5,5 +5,8 @@
     "rootDir": "../src",
     "outDir": "../dist/tests"
   },
-  "include": ["../src/configuration.ts"]
+  "include": [
+    "../src/configuration.ts",
+    "../src/components/ViewerErrorBoundary.tsx"
+  ]
 }

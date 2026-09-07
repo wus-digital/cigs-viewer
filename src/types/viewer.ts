@@ -1,6 +1,13 @@
 import type { CSSProperties } from 'react';
+import type {
+  EXTERIOR_CAMERAS,
+  INTERIOR_CAMERAS,
+} from '../constants/default-cameras.js';
 
 export type ViewerViewMode = 'exterior' | 'interior';
+export type ViewerCameraId =
+  | (typeof EXTERIOR_CAMERAS)[number]['id']
+  | (typeof INTERIOR_CAMERAS)[number]['id'];
 
 export type RenderConfiguration = Readonly<
   Record<string, string | number | null | undefined>
@@ -18,9 +25,11 @@ export interface ViewerRenderOptions {
   configuration: RenderConfiguration;
   /** Absolute HTTP(S) URL or root-relative directory; no query string or hash. */
   baseUrl: string;
-  /** Defaults to C1, C2, C3, C4, C5, C9, C10. [] leaves this view empty. */
+  /** Selected system camera IDs, in swipe order per view. Omitted selects all; [] selects none. */
+  cameras?: readonly ViewerCameraId[];
+  /** @deprecated Use cameras to select IDs from the system catalog. Cannot be combined with cameras. */
   exteriorCameras?: readonly ViewerCamera[];
-  /** Defaults to C6, C7, C8, C11, C12, C13, C14. [] leaves this view empty. */
+  /** @deprecated Use cameras to select IDs from the system catalog. Cannot be combined with cameras. */
   interiorCameras?: readonly ViewerCamera[];
   quality?: RenderQuality;
   /** Optional thumbnail quality, using the same configuration and camera. */
@@ -34,6 +43,8 @@ export interface ViewerFrame {
   cameraId: string;
   alt?: string;
   thumbnailSrc?: string;
+  /** On-demand high-resolution source for this frame; never a thumbnail or neighbor preload. */
+  zoomSrc?: string;
 }
 
 export interface ViewerFrameChange {
@@ -54,6 +65,13 @@ export interface ViewerLabels {
   retry: string;
   frames: string;
   instructions: string;
+  resetZoom: string;
+  zoomInstructions: string;
+  debug?: string;
+  debugCamera?: string;
+  debugImage?: string;
+  debugResolution?: string;
+  debugZoom?: string;
 }
 
 interface ViewerControlsProps {
@@ -68,11 +86,17 @@ interface ViewerControlsProps {
   onFrameChange?: (change: ViewerFrameChange) => void;
   onImageError?: (error: Error, change: ViewerFrameChange) => void;
   loop?: boolean;
-  /** Horizontal pointer travel per frame, in CSS pixels. */
+  /** Slide one image per gesture (default), or scrub continuously through the sequence. */
+  dragMode?: 'slide' | 'sequence';
+  /** Horizontal pointer travel per frame in sequence mode, in CSS pixels. */
   pixelsPerFrame?: number;
-  /** Number of adjacent images to preload per direction (0-4). */
-  preloadRadius?: number;
+  /** Paired preload distance per direction: all frames by default, or 0-4. */
+  preloadRadius?: number | 'all';
   showThumbnails?: boolean;
+  /** Enable wheel zoom (1x-4x) and drag-to-pan. Disabled by default. */
+  enableZoom?: boolean;
+  /** Show actual displayed image metadata below the image. Disabled by default. */
+  showDebug?: boolean;
   labels?: Partial<ViewerLabels>;
   className?: string;
   style?: CSSProperties;

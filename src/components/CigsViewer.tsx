@@ -3,17 +3,14 @@
 import { useMemo } from 'react';
 import { ImageFrameViewer } from './ImageFrameViewer.js';
 import { buildViewerFrames } from '../utils/render-frames.js';
-import {
-  DEFAULT_EXTERIOR_CAMERAS,
-  DEFAULT_INTERIOR_CAMERAS,
-} from '../constants/default-cameras.js';
 import type { CigsViewerProps } from '../types/viewer.js';
 
 export function CigsViewer({
   configuration,
   baseUrl,
-  exteriorCameras = DEFAULT_EXTERIOR_CAMERAS,
-  interiorCameras = DEFAULT_INTERIOR_CAMERAS,
+  cameras,
+  exteriorCameras,
+  interiorCameras,
   quality = 'FHD',
   thumbnailQuality,
   omittedConfigurationKeys,
@@ -24,8 +21,9 @@ export function CigsViewer({
       buildViewerFrames({
         configuration,
         baseUrl,
-        exteriorCameras,
-        interiorCameras,
+        ...(cameras === undefined ? {} : { cameras }),
+        ...(exteriorCameras === undefined ? {} : { exteriorCameras }),
+        ...(interiorCameras === undefined ? {} : { interiorCameras }),
         quality,
         ...(thumbnailQuality === undefined ? {} : { thumbnailQuality }),
         ...(omittedConfigurationKeys === undefined
@@ -35,6 +33,7 @@ export function CigsViewer({
     [
       configuration,
       baseUrl,
+      cameras,
       exteriorCameras,
       interiorCameras,
       quality,

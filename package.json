@@ -19,18 +19,15 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
-    },
-    "./styles.css": "./dist/styles.css"
+    }
   },
   "files": [
     "dist",
     "README.md"
   ],
-  "sideEffects": [
-    "**/*.css"
-  ],
+  "sideEffects": false,
   "scripts": {
-    "build": "node scripts/clean.mjs && tsc -p tsconfig.json && node scripts/copy-styles.mjs",
+    "build": "node scripts/clean.mjs && tsc -p tsconfig.json",
     "lint": "eslint src tests scripts examples/demo",
     "demo": "npm run build && npm --prefix examples/demo run dev",
     "demo:build": "npm run build && npm --prefix examples/demo run build",
