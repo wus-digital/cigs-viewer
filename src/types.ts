@@ -78,7 +78,7 @@ interface ViewerControlsProps {
   style?: CSSProperties;
 }
 
-export interface ConfiguratorImageViewerProps
+export interface CigsViewerProps
   extends ViewerRenderOptions, ViewerControlsProps {}
 
 export interface ImageFrameViewerProps extends ViewerControlsProps {

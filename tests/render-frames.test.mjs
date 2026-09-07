@@ -5,9 +5,10 @@ import { buildViewerFrames } from '../dist/render-frames.js';
 const options = {
   baseUrl: 'https://renders.example.test/assets/',
   configuration: {
-    B: 'GT3RS',
+    B: '01',
     M: '01',
     P: '070707',
+    PMV: '100',
     AKZ: '01',
     AKZI: '02',
     DHC: '03',
@@ -22,22 +23,22 @@ test('builds exact CIGS paths with per-view filters and camera tokens, without s
     {
       cameraId: 'C360_001',
       alt: 'Front',
-      src: 'https://renders.example.test/assets/BGT3RS_M01_P070707_AKZ01_C360_001_PQM-FHD.webp',
+      src: 'https://renders.example.test/assets/B01_M01_P070707_PMV100_AKZ01_C360_001_PQM-FHD.webp',
     },
     {
       cameraId: 'C360_106',
-      src: 'https://renders.example.test/assets/BGT3RS_M01_P070707_AKZ01_C360_106_PQM-FHD.webp',
+      src: 'https://renders.example.test/assets/B01_M01_P070707_PMV100_AKZ01_C360_106_PQM-FHD.webp',
     },
   ]);
   assert.deepEqual(result.interiorFrames, [
     {
       cameraId: 'CINT_DASH',
-      src: 'https://renders.example.test/assets/BGT3RS_M01_P070707_AKZI02_DHC03_CINT_DASH_PQM-FHD.webp',
+      src: 'https://renders.example.test/assets/B01_M01_P070707_PMV100_AKZI02_DHC03_CINT_DASH_PQM-FHD.webp',
     },
     {
       cameraId: 'CINT_SEAT',
       alt: 'Seats',
-      src: 'https://renders.example.test/assets/BGT3RS_M01_P070707_AKZI02_DHC03_CINT_SEAT_PQM-FHD.webp',
+      src: 'https://renders.example.test/assets/B01_M01_P070707_PMV100_AKZI02_DHC03_CINT_SEAT_PQM-FHD.webp',
     },
   ]);
 });
@@ -48,7 +49,7 @@ test('preserves code order, skips missing values, retains numeric zero and allow
     baseUrl: '/',
     configuration: {
       M: '01',
-      B: 'GT3RS',
+      B: '01',
       EMPTY: '',
       UNDEFINED: undefined,
       NULL: null,
@@ -59,11 +60,11 @@ test('preserves code order, skips missing values, retains numeric zero and allow
   });
   assert.equal(
     result.exteriorFrames[0].src,
-    '/M01_BGT3RS_AKZ02_C360_001_PQM-FHD.webp'
+    '/M01_B01_AKZ02_C360_001_PQM-FHD.webp'
   );
   assert.equal(
     result.interiorFrames[0].src,
-    '/M01_BGT3RS_Z0_AKZ02_CINT_DASH_PQM-FHD.webp'
+    '/M01_B01_Z0_AKZ02_CINT_DASH_PQM-FHD.webp'
   );
 });
 
@@ -96,7 +97,7 @@ test('camera IDs are explicit and are not rewritten into panorama or invented se
 });
 
 test('does not mutate configuration, camera lists or options', () => {
-  const configuration = Object.freeze({ B: 'GT3RS', M: '01' });
+  const configuration = Object.freeze({ B: '01', M: '01' });
   const cameras = Object.freeze([Object.freeze({ id: 'C360_001' })]);
   const frozen = Object.freeze({
     ...options,
@@ -129,7 +130,7 @@ test('rejects malformed configuration, duplicate cameras, unsafe URL tokens and 
     { configuration: { B: '../bad' } },
     { configuration: { B: 'x?y' } },
     { configuration: { B: 'x#y' } },
-    { configuration: { 'B/': 'GT3RS' } },
+    { configuration: { 'B/': '01' } },
     { exteriorCameras: null },
     { interiorCameras: null },
     { exteriorCameras: [{ id: 'C1' }, { id: 'C1' }] },
@@ -149,7 +150,7 @@ test('rejects malformed configuration, duplicate cameras, unsafe URL tokens and 
 });
 
 test('omitted camera arrays build the exact default cameras in the requested order', () => {
-  const defaults = { baseUrl: '/renders', configuration: { B: 'GT3RS' } };
+  const defaults = { baseUrl: '/renders', configuration: { B: '01' } };
   const result = buildViewerFrames(defaults);
   const exterior = ['C1', 'C2', 'C3', 'C4', 'C5', 'C9', 'C10'];
   const interior = ['C6', 'C7', 'C8', 'C11', 'C12', 'C13', 'C14'];
@@ -163,11 +164,11 @@ test('omitted camera arrays build the exact default cameras in the requested ord
   );
   assert.deepEqual(
     result.exteriorFrames.map((frame) => frame.src),
-    exterior.map((id) => `/renders/BGT3RS_${id}_PQM-FHD.webp`)
+    exterior.map((id) => `/renders/B01_${id}_PQM-FHD.webp`)
   );
   assert.deepEqual(
     result.interiorFrames.map((frame) => frame.src),
-    interior.map((id) => `/renders/BGT3RS_${id}_PQM-FHD.webp`)
+    interior.map((id) => `/renders/B01_${id}_PQM-FHD.webp`)
   );
   assert.deepEqual(
     buildViewerFrames({
@@ -180,7 +181,7 @@ test('omitted camera arrays build the exact default cameras in the requested ord
 });
 
 test('camera overrides are independent and empty arrays do not fall back to defaults', () => {
-  const defaults = { baseUrl: '/renders', configuration: { B: 'GT3RS' } };
+  const defaults = { baseUrl: '/renders', configuration: { B: '01' } };
   const result = buildViewerFrames({
     ...defaults,
     exteriorCameras: [{ id: 'CUSTOM' }],

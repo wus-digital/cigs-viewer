@@ -7,9 +7,9 @@ import {
   DEFAULT_EXTERIOR_CAMERAS,
   DEFAULT_INTERIOR_CAMERAS,
 } from './default-cameras.js';
-import type { ConfiguratorImageViewerProps } from './types.js';
+import type { CigsViewerProps } from './types.js';
 
-export function ConfiguratorImageViewer({
+export function CigsViewer({
   configuration,
   baseUrl,
   exteriorCameras = DEFAULT_EXTERIOR_CAMERAS,
@@ -18,7 +18,7 @@ export function ConfiguratorImageViewer({
   thumbnailQuality,
   omittedConfigurationKeys,
   ...controls
-}: ConfiguratorImageViewerProps) {
+}: CigsViewerProps) {
   const frames = useMemo(
     () =>
       buildViewerFrames({

@@ -3,22 +3,33 @@ import { readFile, readdir } from 'node:fs/promises';
 import { test } from 'node:test';
 import React from 'react';
 import { renderToString } from 'react-dom/server';
-import { ConfiguratorImageViewer } from '../dist/index.js';
+import { CigsViewer } from 'cigs-viewer';
 import { adjacentSources, normalizeFrame } from '../dist/frames.js';
+
+test('exports CigsViewer and ships only the renamed component module', async () => {
+  const api = await import('cigs-viewer');
+  assert.equal(typeof api.CigsViewer, 'function');
+  assert.equal('ConfiguratorImageViewer' in api, false);
+  assert.equal('CigsViwer' in api, false);
+  const files = await readdir(new URL('../dist/', import.meta.url));
+  assert.ok(files.includes('CigsViewer.js'));
+  assert.ok(files.includes('CigsViewer.d.ts'));
+  assert.ok(
+    !files.some((file) => /^(ConfiguratorImageViewer|CigsViwer)\./.test(file))
+  );
+});
 
 const props = {
   baseUrl: '/renders',
-  configuration: { B: 'GT3RS', M: '01' },
+  configuration: { B: '01', M: '01' },
   exteriorCameras: [{ id: 'C360_001' }],
   interiorCameras: [{ id: 'CINT_DASH' }],
 };
 
 test('ESM entry is an SSR-safe client boundary with typed exports and no application dependencies', async () => {
   assert.equal(typeof window, 'undefined');
-  const html = renderToString(
-    React.createElement(ConfiguratorImageViewer, props)
-  );
-  assert.match(html, /src="\/renders\/BGT3RS_M01_C360_001_PQM-FHD.webp"/);
+  const html = renderToString(React.createElement(CigsViewer, props));
+  assert.match(html, /src="\/renders\/B01_M01_C360_001_PQM-FHD.webp"/);
   assert.doesNotMatch(html, /canvas|iframe|video/);
   const entry = await readFile(
     new URL('../dist/index.js', import.meta.url),
@@ -62,19 +73,17 @@ test('invalid options fail explicitly, while out-of-range indices are safely cla
     { configuration: {} },
   ]) {
     assert.throws(() =>
-      renderToString(
-        React.createElement(ConfiguratorImageViewer, { ...props, ...options })
-      )
+      renderToString(React.createElement(CigsViewer, { ...props, ...options }))
     );
   }
   assert.match(
     renderToString(
-      React.createElement(ConfiguratorImageViewer, {
+      React.createElement(CigsViewer, {
         ...props,
         frameIndex: 100,
       })
     ),
-    /BGT3RS_M01_C360_001_PQM-FHD.webp/
+    /B01_M01_C360_001_PQM-FHD.webp/
   );
 });
 

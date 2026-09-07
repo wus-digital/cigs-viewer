@@ -5,7 +5,7 @@ import React from 'react';
 import { createRoot, hydrateRoot } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
 import { act as legacyAct } from 'react-dom/test-utils';
-import { ConfiguratorImageViewer } from 'cigs-viewer';
+import { CigsViewer } from 'cigs-viewer';
 import {
   DEFAULT_EXTERIOR_CAMERAS,
   DEFAULT_INTERIOR_CAMERAS,
@@ -377,9 +377,10 @@ test('server HTML hydrates without mismatches and navigation remains interactive
 const renderDefaults = {
   baseUrl: '/renders',
   configuration: {
-    B: 'GT3RS',
+    B: '01',
     M: '01',
     P: '070707',
+    PMV: '100',
     AKZ: '01',
     AKZI: '02',
     DHC: '03',
@@ -395,8 +396,8 @@ const renderDefaults = {
     { id: 'CINT_DOOR', label: 'Door' },
   ],
 };
-const exteriorCode = 'BGT3RS_M01_P070707_AKZ01';
-const interiorCode = 'BGT3RS_M01_P070707_AKZI02_DHC03';
+const exteriorCode = 'B01_M01_P070707_PMV100_AKZ01';
+const interiorCode = 'B01_M01_P070707_PMV100_AKZI02_DHC03';
 
 async function renderConfiguration(props = {}) {
   if (!root) {
@@ -407,7 +408,7 @@ async function renderConfiguration(props = {}) {
 
   await act(() =>
     root.render(
-      React.createElement(ConfiguratorImageViewer, {
+      React.createElement(CigsViewer, {
         ...renderDefaults,
         ...props,
       })
@@ -503,7 +504,7 @@ test('configuration and quality updates rebuild current, neighbor and thumbnail 
     thumbnailQuality: 'WQHD',
     quality: '8K',
   });
-  const code = 'BGT3RS_M01_PFFFFFF_AKZ01';
+  const code = 'B01_M01_PFFFFFF_PMV100_AKZ01';
   assert.equal(
     activeImage().getAttribute('src'),
     `/renders/${code}_C360_002_PQM-8K.webp`
@@ -524,7 +525,7 @@ test('configuration and quality updates rebuild current, neighbor and thumbnail 
   await click('Interior');
   assert.equal(
     activeImage().getAttribute('src'),
-    '/renders/BGT3RS_M01_PFFFFFF_AKZI02_DHC03_CINT_DASH_PQM-8K.webp'
+    '/renders/B01_M01_PFFFFFF_PMV100_AKZI02_DHC03_CINT_DASH_PQM-8K.webp'
   );
 });
 
@@ -578,21 +579,21 @@ test('empty camera sets and custom render-code filters are supported by the publ
   await click('Interior');
   assert.equal(
     activeImage().getAttribute('src'),
-    '/renders/BGT3RS_M01_P070707_AKZ01_AKZI02_DHC03_CINT_DASH_PQM-FHD.webp'
+    '/renders/B01_M01_P070707_PMV100_AKZ01_AKZI02_DHC03_CINT_DASH_PQM-FHD.webp'
   );
 });
 
 test('configuration-driven public entry hydrates and navigates without mismatches', async () => {
   container = document.createElement('div');
   container.innerHTML = renderToString(
-    React.createElement(ConfiguratorImageViewer, renderDefaults)
+    React.createElement(CigsViewer, renderDefaults)
   );
   document.body.append(container);
   const errors = [];
   await act(() => {
     root = hydrateRoot(
       container,
-      React.createElement(ConfiguratorImageViewer, renderDefaults),
+      React.createElement(CigsViewer, renderDefaults),
       {
         onRecoverableError: (error) => errors.push(error),
       }

@@ -23,18 +23,19 @@ Eine Veroeffentlichung auf GitHub ist noch keine Veroeffentlichung auf npm.
 ## Verwendung
 
 ```tsx
-import { ConfiguratorImageViewer } from 'cigs-viewer';
+import { CigsViewer } from 'cigs-viewer';
 import 'cigs-viewer/styles.css';
 
 const configuration = {
-  B: 'GT3RS',
+  B: '01',
   M: '01',
   P: '070707',
+  PMV: '100',
 };
 
 export function Preview() {
   return (
-    <ConfiguratorImageViewer
+    <CigsViewer
       baseUrl='https://renders.example.com'
       configuration={configuration}
       quality='FHD'
@@ -75,8 +76,8 @@ die Ansicht leer. Die unveraenderlichen Defaults sind als
 Fuer die obige Konfiguration entstehen automatisch beispielsweise:
 
 ```text
-https://renders.example.com/BGT3RS_M01_P070707_C1_PQM-FHD.webp
-https://renders.example.com/BGT3RS_M01_P070707_C6_PQM-FHD.webp
+https://renders.example.com/B01_M01_P070707_PMV100_C1_PQM-FHD.webp
+https://renders.example.com/B01_M01_P070707_PMV100_C6_PQM-FHD.webp
 ```
 
 - Die Kamera-ID ist der **vollstaendige Kamera-Token im Dateinamen**, nicht ein
@@ -116,7 +117,7 @@ Kameralisten ebenfalls unveraenderlich behandeln und als neue Arrays uebergeben.
 
 import { useState } from 'react';
 import {
-  ConfiguratorImageViewer,
+  CigsViewer,
   DEFAULT_EXTERIOR_CAMERAS,
   DEFAULT_INTERIOR_CAMERAS,
   type ViewerRenderOptions,
@@ -133,7 +134,7 @@ export function ControlledPreview(props: ViewerRenderOptions) {
   const cameraId = cameraIds[viewMode];
 
   return (
-    <ConfiguratorImageViewer
+    <CigsViewer
       {...props}
       viewMode={viewMode}
       {...(cameraId === undefined ? {} : { cameraId })}
@@ -223,11 +224,16 @@ Zoom/Panning, 3D-Sitzkonfiguration, Grid- oder Fullscreen-Praesentationsmodus.
 Ab **0.2.0** ersetzen `configuration`, `baseUrl`, `exteriorCameras` und
 `interiorCameras` die bisherigen `exteriorFrames`-/`interiorFrames`-Props.
 Die Host-App braucht keine URL-Builder mehr. `thumbnailSrc` wird durch
-`thumbnailQuality` ersetzt. Der Komponentenname `ConfiguratorImageViewer`
-und die Navigations-Callbacks bleiben bestehen; Frames enthalten jetzt die Kamera-ID.
+`thumbnailQuality` ersetzt. Die Navigations-Callbacks bleiben bestehen;
+Frames enthalten jetzt die Kamera-ID.
 
 Ab **0.2.1** sind beide Kamera-Props optional und verwenden die oben genannten
 Defaults. Bestehende explizite Kamera-Arrays behalten unveraendert ihre Wirkung.
+
+Ab **0.3.0** heissen die Komponente `CigsViewer` und ihr Props-Typ `CigsViewerProps`.
+Die bisherigen Namen `ConfiguratorImageViewer` und `ConfiguratorImageViewerProps`
+werden nicht mehr exportiert. Imports und JSX entsprechend umbenennen;
+Props und Verhalten bleiben unveraendert.
 
 ## Entwicklung und lokale Installation
 
@@ -241,7 +247,7 @@ npm pack --dry-run
 npm pack
 
 # In einer separaten React-App:
-npm install /absoluter/pfad/cigs-viewer-0.2.1.tgz
+npm install /absoluter/pfad/cigs-viewer-0.3.0.tgz
 ```
 
 `npm test` baut mit TypeScript, prueft den oeffentlichen Typvertrag und fuehrt
