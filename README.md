@@ -82,8 +82,8 @@ projektspezifischen Umgebungsvariablen und verwendet keinen fest eingebauten Hos
 
 Der feste System-Katalog enthaelt diese maximal verfuegbaren Kameras:
 
-- **Exterieur:** `C1`, `C2`, `C3`, `C4`, `C5`, `C9`, `C10`
-- **Interieur:** `C6`, `C7`, `C8`, `C11`, `C12`, `C13`, `C14`
+- **Exterieur:** `C1`, `C2`, `C3`, `C4`, `C5`, `C8`, `C9`, `C10`
+- **Interieur:** `C6`, `C7`, `C11`, `C12`, `C13`, `C14`
 
 Mit `cameras={['C1', 'C6']}` werden nur diese IDs verwendet. Die Zuordnung zu
 Exterieur/Interieur erfolgt automatisch, die Reihenfolge innerhalb einer Ansicht
