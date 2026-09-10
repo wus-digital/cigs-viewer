@@ -7,7 +7,6 @@ import {
   thumbnailsClasses,
 } from '../constants/tailwind.js';
 import { ThumbnailImage } from './ThumbnailImage.js';
-import { CigsViewerViewSwitchButton } from './CigsViewerButtons.js';
 import { useViewerContext, ViewerLayoutContext } from './ViewerContext.js';
 
 export type CigsViewerThumbnailsProps = HTMLAttributes<HTMLDivElement>;
@@ -23,8 +22,6 @@ export const CigsViewerThumbnails = forwardRef<
   const {
     frames,
     frameIndex,
-    viewMode,
-    alternateFrame,
     showThumbnails,
     labels,
     classNames,
@@ -67,8 +64,8 @@ export const CigsViewerThumbnails = forwardRef<
       strip.scrollLeft =
         selected.offsetLeft + selected.offsetWidth - strip.clientWidth;
     }
-  }, [activeIndex, viewMode, showCameraThumbnails]);
-  if (!showCameraThumbnails && !(alternateFrame && frames.length)) return null;
+  }, [activeIndex, showCameraThumbnails]);
+  if (!showCameraThumbnails) return null;
   return (
     <div
       {...props}
@@ -82,33 +79,30 @@ export const CigsViewerThumbnails = forwardRef<
       role='group'
       aria-label={labels.frames}
     >
-      {viewMode === 'interior' && <CigsViewerViewSwitchButton />}
-      {showCameraThumbnails &&
-        frames.map((frame, index) => {
-          const src = frame.thumbnailSrc ?? frame.src;
-          return (
-            <button
-              className={slotClasses(
-                'civ__thumbnail',
-                thumbnailButtonClasses,
-                classNames?.thumbnail
-              )}
-              key={frameIdentity(frame, index)}
-              type='button'
-              aria-label={frame.alt ?? `${labels[viewMode]} ${index + 1}`}
-              aria-pressed={activeIndex === index}
-              onClick={() => selectFrame(index)}
-            >
-              <ThumbnailImage
-                src={src}
-                ready={loading.enabled && loading.loadedSources.has(src)}
-                index={index}
-                className={classNames?.thumbnailImage}
-              />
-            </button>
-          );
-        })}
-      {viewMode === 'exterior' && <CigsViewerViewSwitchButton />}
+      {frames.map((frame, index) => {
+        const src = frame.thumbnailSrc ?? frame.src;
+        return (
+          <button
+            className={slotClasses(
+              'civ__thumbnail',
+              thumbnailButtonClasses,
+              classNames?.thumbnail
+            )}
+            key={frameIdentity(frame, index)}
+            type='button'
+            aria-label={frame.alt ?? `${labels.viewer} ${index + 1}`}
+            aria-pressed={activeIndex === index}
+            onClick={() => selectFrame(index)}
+          >
+            <ThumbnailImage
+              src={src}
+              ready={loading.enabled && loading.loadedSources.has(src)}
+              index={index}
+              className={classNames?.thumbnailImage}
+            />
+          </button>
+        );
+      })}
       {children}
     </div>
   );

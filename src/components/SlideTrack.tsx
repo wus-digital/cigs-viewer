@@ -1,19 +1,13 @@
 import type { ReactNode, TransitionEventHandler } from 'react';
 import type { SlideMotion } from '../hooks/useSlideDrag.js';
 import { frameIdentity, normalizeFrame } from '../utils/frames.js';
-import type {
-  ViewerFrame,
-  ViewerLabels,
-  ViewerViewMode,
-} from '../types/viewer.js';
+import type { ViewerFrame, ViewerLabels } from '../types/viewer.js';
 import { FrameImage } from './FrameImage.js';
 import { fill, statusClasses } from '../constants/tailwind.js';
 
 interface Props {
   frames: readonly ViewerFrame[];
-  alternateFrame: ViewerFrame | undefined;
   frameIndex: number;
-  viewMode: ViewerViewMode;
   loop: boolean;
   labels: ViewerLabels;
   motion: SlideMotion;
@@ -26,9 +20,7 @@ interface Props {
 
 export function SlideTrack({
   frames,
-  alternateFrame,
   frameIndex,
-  viewMode,
   loop,
   labels,
   motion,
@@ -53,17 +45,12 @@ export function SlideTrack({
   const neighborIndex =
     motion.targetIndex ?? normalizeFrame(target, frames.length, loop);
   const neighbor =
-    motion.switchingView && active
-      ? alternateFrame
-      : active &&
-          frames.length > 1 &&
-          (loop || (target >= 0 && target < frames.length))
-        ? frames[neighborIndex]
-        : undefined;
-  const retainedSrc =
-    neighbor && !motion.switchingView
-      ? retainedSources.get(frameIdentity(neighbor, neighborIndex))
+    active && frames.length > 1 && (loop || (target >= 0 && target < frames.length))
+      ? frames[neighborIndex]
       : undefined;
+  const retainedSrc = neighbor
+    ? retainedSources.get(frameIdentity(neighbor, neighborIndex))
+    : undefined;
   return (
     <div className={`civ__slider ${fill} isolate`}>
       <div
@@ -94,15 +81,7 @@ export function SlideTrack({
           {loadedSources.has(neighbor.src) || retainedSrc ? (
             <FrameImage
               key={neighbor.src}
-              change={{
-                viewMode: motion.switchingView
-                  ? viewMode === 'exterior'
-                    ? 'interior'
-                    : 'exterior'
-                  : viewMode,
-                frameIndex: neighborIndex,
-                frame: neighbor,
-              }}
+              change={{ frameIndex: neighborIndex, frame: neighbor }}
               alt=''
               labels={labels}
               onImageError={undefined}

@@ -24,8 +24,6 @@ export const CigsViewerViewport = forwardRef<
 ) {
   const {
     frames,
-    alternateFrame,
-    viewMode,
     frameIndex,
     loop,
     dragMode,
@@ -62,10 +60,8 @@ export const CigsViewerViewport = forwardRef<
   const image = frame ? (
     <FrameImage
       key={frameIdentity(frame, frameIndex)}
-      change={{ viewMode, frameIndex, frame }}
-      alt={
-        frame.alt ?? `${labels[viewMode]} ${frameIndex + 1} / ${frames.length}`
-      }
+      change={{ frameIndex, frame }}
+      alt={frame.alt ?? `${labels.viewer} ${frameIndex + 1} / ${frames.length}`}
       labels={labels}
       onImageError={onImageError}
       enabled={loading.enabled}
@@ -95,7 +91,7 @@ export const CigsViewerViewport = forwardRef<
         className
       )}
       role='group'
-      aria-label={labels[viewMode]}
+      aria-label={labels.viewer}
       aria-describedby={instructionsId}
       tabIndex={0}
       ref={ref}
@@ -168,11 +164,9 @@ export const CigsViewerViewport = forwardRef<
       >
         <div className={`civ__zoom-layer ${fill}`} style={{ transform }}>
           <SlideTrack
-            key={`${viewMode}:${dragMode}`}
+            key={dragMode}
             frames={frames}
-            alternateFrame={alternateFrame}
             frameIndex={frameIndex}
-            viewMode={viewMode}
             loop={loop}
             labels={labels}
             motion={motion}
@@ -186,7 +180,7 @@ export const CigsViewerViewport = forwardRef<
               <ZoomFrameImage
                 key={zoomScope}
                 src={frame.zoomSrc}
-                change={{ viewMode, frameIndex, frame }}
+                change={{ frameIndex, frame }}
                 active={
                   enableZoom &&
                   scale > 1 &&

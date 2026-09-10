@@ -7,19 +7,13 @@ export {
   CigsViewerPreviousButton,
   CigsViewerNextButton,
   CigsViewerZoomResetButton,
-  CigsViewerViewSwitchButton,
   CigsViewerFullscreenButton,
 } from './components/CigsViewerButtons.js';
 export type { CigsViewerViewportProps } from './components/CigsViewerViewport.js';
 export type { CigsViewerThumbnailsProps } from './components/CigsViewerThumbnails.js';
 export type { CigsViewerButtonProps } from './components/ViewerButton.js';
 export { RENDER_QUALITIES } from './types/viewer.js';
-export {
-  EXTERIOR_CAMERAS,
-  INTERIOR_CAMERAS,
-  DEFAULT_EXTERIOR_CAMERAS,
-  DEFAULT_INTERIOR_CAMERAS,
-} from './constants/default-cameras.js';
+export { DEFAULT_CAMERAS } from './constants/default-cameras.js';
 export type {
   CigsViewerProps,
   ViewerClassNames,
@@ -31,5 +25,4 @@ export type {
   ViewerFrame,
   ViewerFrameChange,
   ViewerLabels,
-  ViewerViewMode,
 } from './types/viewer.js';

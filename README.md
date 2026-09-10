@@ -6,8 +6,8 @@ React-/TypeScript-Viewer fuer den CIGS-Render-Service. Der Viewer erhaelt eine
 `configuration` als Key-Value-Objekt sowie eine optionale `cameras`-Auswahl und
 baut daraus alle Bildpfade selbst. **Keine manuellen Bild-URL-Arrays.**
 
-Beide Ansichten verwenden normale durchwischbare Bilder: kein Unreal, Arcware,
-WebGL oder Fisheye. React/React DOM bleiben Peer-Dependencies; kleine
+Ein normaler, durchwischbarer Kamera-Karussell: kein Unreal, Arcware, WebGL
+oder Fisheye. React/React DOM bleiben Peer-Dependencies; kleine
 Runtime-Helfer (`tailwind-merge` und Radix Slot) uebernehmen Klassen-Overrides
 und die Komposition eigener Buttons.
 
@@ -64,8 +64,6 @@ export function Preview() {
       quality='FHD'
       labels={{
         viewer: 'Fahrzeugansicht',
-        exterior: 'Exterieur',
-        interior: 'Interieur',
         previous: 'Vorheriges Bild',
         next: 'Naechstes Bild',
       }}
@@ -80,108 +78,105 @@ projektspezifischen Umgebungsvariablen und verwendet keinen fest eingebauten Hos
 
 ### System-Kameras und Auswahl
 
-Der feste System-Katalog enthaelt diese maximal verfuegbaren Kameras:
+Der feste System-Katalog enthaelt diese maximal verfuegbaren Kameras, in
+dieser Standard-Reihenfolge:
 
-- **Exterieur:** `C1`, `C2`, `C3`, `C4`, `C5`, `C8`, `C9`, `C10`
-- **Interieur:** `C6`, `C7`, `C11`, `C12`, `C13`, `C14`
+`C1`, `C2`, `C3`, `C4`, `C5`, `C8`, `C9`, `C10`, `C6`, `C7`, `C11`, `C12`,
+`C13`, `C14`
 
-Mit `cameras={['C1', 'C6']}` werden nur diese IDs verwendet. Die Zuordnung zu
-Exterieur/Interieur erfolgt automatisch, die Reihenfolge innerhalb einer Ansicht
-folgt der uebergebenen Liste. Unbekannte oder doppelte IDs werden abgelehnt.
-Ohne `cameras` wird der komplette Katalog verwendet; `cameras={[]}` bleibt leer.
+Der Viewer unterscheidet nicht zwischen "Exterieur" und "Interieur" - es gibt
+nur eine einzige Kameraliste, in der vom Host konfigurierten (bzw. der
+System-Standard-) Reihenfolge. Mit `cameras={['C1', 'C6']}` werden nur diese
+IDs, in genau dieser Reihenfolge, verwendet. Unbekannte oder doppelte IDs
+werden abgelehnt. Ohne `cameras` wird der komplette Katalog verwendet;
+`cameras={[]}` bleibt leer.
 
 ```tsx
-// Einzelbild, ohne Swipe, Navigationspfeile oder Ansichtswechsel:
+// Einzelbild, ohne Swipe oder Navigationspfeile:
 <CigsViewer baseUrl={baseUrl} configuration={configuration} cameras={['C1']} />
-// Nur Interieur; ohne kontrolliertes viewMode automatisch die richtige Ansicht:
-<CigsViewer baseUrl={baseUrl} configuration={configuration} cameras={['C6']} />
+// Nur zwei bestimmte Kameras, in dieser Reihenfolge:
+<CigsViewer baseUrl={baseUrl} configuration={configuration} cameras={['C6', 'C1']} />
 ```
 
-Ein Ansichtswechsel erscheint nur, wenn beide Bereiche mindestens eine Kamera
-enthalten. Bei einer Kamera pro Ansicht erfolgt der Wechsel ueber dieses
-Thumbnail, nicht durch Wischen. Zoom und Verschieben funktionieren auch beim Einzelbild.
-Bei kontrolliertem `viewMode`/`cameraId` muss der Host weiterhin eine zur Auswahl
-passende Ansicht und Kamera liefern.
+Zoom und Verschieben funktionieren auch beim Einzelbild.
 
-`EXTERIOR_CAMERAS` und `INTERIOR_CAMERAS` exportieren den unveraenderlichen Katalog;
-`ViewerCameraId` ist der zugehoerige TypeScript-ID-Typ. Die bisherigen
-`DEFAULT_EXTERIOR_CAMERAS`/`DEFAULT_INTERIOR_CAMERAS` bleiben als Aliase erhalten.
-Die alten `exteriorCameras`/`interiorCameras`-Props bleiben fuer bestehende
-Integrationen verfuegbar, sind aber veraltet und duerfen nicht mit `cameras`
-kombiniert werden. Neue Integrationen verwenden nur die gemeinsame Auswahl.
+`DEFAULT_CAMERAS` exportiert den unveraenderlichen Katalog als Referenz;
+`ViewerCameraId` ist der zugehoerige TypeScript-ID-Typ.
 
-### So werden die Pfade gebaut
+### Wie Bilder geladen werden
 
-Intern wird pro Bild zunaechst derselbe Konfigurationscode wie bisher gebaut:
+Der Viewer baut **keine** Bild-URLs mehr selbst zusammen. Stattdessen ruft er
+`POST {baseUrl}/generate` beim CIGS-Render-Service auf und verwendet die von
+dort zurueckgelieferten URLs direkt als Bildquelle:
 
-```text
-{key}{value}_{key}{value}_{camera.id}_PQM-{quality}
+```bash
+curl -X POST https://cigs.elferplatz.com/generate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "configuration": { "B": "01", "M": "01", "PQM": "-FHD" },
+    "cameras": ["360_001", "360_002"]
+  }'
+# -> { "360_001": "https://.../C360_001_....webp", "360_002": "https://.../C360_002_....webp" }
 ```
 
-Dieser Code wird jedoch **nicht** mehr im Klartext in die URL geschrieben.
-Stattdessen wendet der Viewer die vom CIGS-Backend vorgegebene
-Frontend-Hashing-Regel an (1:1 uebernommen):
+`baseUrl` ist deshalb die **API-Basis-URL des Render-Service**
+(z. B. `http://localhost:3234` lokal oder `https://cigs.elferplatz.com` in
+Produktion) und **nicht** eine Bild-CDN-URL — die tatsaechlichen Bild-URLs
+liefert ausschliesslich die `/generate`-Antwort, der Viewer rekonstruiert
+oder rät sie nie selbst.
 
-1. `configurationCode` normalisieren:
-   - `.webp`-Endung entfernen.
-   - Kamera-Token (`C1`, `C2`, `C99`, ...) aus dem Code extrahieren und vor
-     dem Hashen entfernen – die Kamera wird separat als Suffix angehaengt und
-     ist **nicht** Teil des Hash-Payloads.
-   - restliche Tokens an `_` splitten, leere Tokens verwerfen und mit `_`
-     wieder zusammenfuegen.
-2. Payload bauen: `cfg:v1:${normalizedConfigurationCodeOhneKamera}`.
-3. Payload mit `deflateRaw` (Level `9`) komprimieren.
-4. Ergebnis als `base64url` kodieren (kein Padding, `+`/`/` ersetzt).
-5. Prefix `h1` davor setzen.
-6. Prefix fuer die Baureihe davor setzen: `${baureihe}_${hash}`.
-7. Kamera-Suffix hinten anhaengen: `${baureihe}_${hash}_${camera.id}`.
-8. Die Bild-URL ist dann `{baseUrl}/${baureihe}_${hash}_${camera.id}.webp`.
+Ablauf bei jeder Konfigurations-/Kamera-/Qualitaetsaenderung:
 
-Die `baureihe` wird automatisch aus `configuration.B` abgeleitet (z. B. `'01'`
-wird zu `B01`), kann aber ueber die optionale Prop `baureihe` explizit
-ueberschrieben werden. Fuer die obige Beispielkonfiguration entsteht damit
-beispielsweise fuer Kamera `C1`:
+1. Aus `configuration` wird ein Objekt gebaut, ergaenzt um
+   `PQM: '-${quality}'`. Der Viewer entscheidet **nicht**, welche
+   Konfigurations-Keys gesendet werden - die volle `configuration` geht 1:1
+   an `/generate` (leere/`undefined`/`null`-Werte werden uebersprungen, da
+   sie keine gueltigen Render-Tokens sind, nicht als bewusste Filterung).
+2. Der Viewer ruft `POST {baseUrl}/generate` **nicht** fuer alle Kameras auf
+   einmal auf, sondern priorisiert: zuerst nur die aktuell angezeigte (bzw.
+   per `cameraId`/`frameIndex` angeforderte, sonst die erste) Kamera, danach
+   je ein Aufruf fuer die naechsten Nachbarn (1 links + 1 rechts, dann
+   2 links + 2 rechts, usw.) - die Kameraliste wird dabei wie eine
+   Ringliste behandelt (identisch zur Wraparound-Navigation), bis alle
+   Kameras abgedeckt sind. `cameras` enthaelt dabei die Kamera-IDs **ohne**
+   ihr fuehrendes `C` (der Service ergaenzt es selbst). Fuer `zoomSrc` bzw.
+   `thumbnailSrc` erfolgt bei abweichender Qualitaet je ein weiterer Aufruf
+   pro Batch; identische Qualitaeten teilen sich einen Aufruf.
+3. Sobald ein Batch antwortet, werden dessen URLs sofort 1:1 als
+   `src`/`zoomSrc`/`thumbnailSrc` fuer genau diese Kameras uebernommen —
+   bereits geladene Bilder bleiben dabei unangetastet, unabhaengig davon,
+   ob spaetere Batches noch laufen oder fehlschlagen.
 
-```text
-https://renders.example.com/B01_h1S05LtyoztHIyMIz3NTCMDzAwB8H4AN8wQwOD-IBAX103DxcA_C1.webp
-```
-
-Der tatsaechliche Hash aendert sich mit jedem Konfigurationscode; nur das
-Muster `{baseUrl}/{baureihe}_{hash}_{camera.id}.webp` ist stabil. Da die
-Kamera nicht Teil des Hash-Payloads ist, teilen sich alle Kameras derselben
-Konfiguration denselben Hash und unterscheiden sich nur im
-`_{camera.id}`-Suffix.
+Bis eine Kamera ihren ersten Batch erhalten hat, zeigt ihr Frame ein
+transparentes 1x1-Platzhalterbild (keine Netzwerklast); Navigation und die
+Bildanzahl funktionieren dabei bereits normal, da die Kameraliste selbst
+synchron feststeht. Waehrend des allerersten Renderns (auch serverseitig)
+zeigt der Viewer kurz den "keine Bilder verfuegbar"-Status (`labels.empty`),
+bis der erste Batch eingetroffen ist. Schlaegt ein `/generate`-Aufruf fehl,
+bleiben bereits geladene Kameras sichtbar; der Fehler wird ueber
+`onGenerateError(error)` gemeldet.
 
 - Die Kamera-ID ist der **vollstaendige Kamera-Token im Konfigurationscode**,
   nicht ein Pfad und nicht ein Alias fuer eine Fisheye-Yaw-/Pitch-Position.
   IDs werden weder umgeschrieben noch automatisch mit `C360`/`C360INT` ergaenzt.
-- Die Reihenfolge der Kamera-Arrays bestimmt die Swipe-Reihenfolge. Beide
-  Ansichten duerfen unterschiedlich viele Kameras haben.
+- Die Reihenfolge des `cameras`-Arrays bestimmt die Swipe-Reihenfolge.
 - Die `Object.entries(configuration)`-Reihenfolge bleibt wie im bisherigen
-  Render-Builder erhalten. Die Keys werden **nicht alphabetisch sortiert**.
+  Render-Builder erhalten. Die Keys werden **nicht alphabetisch sortiert**
+  und **nicht gefiltert** - was im `configuration`-Objekt steht, geht 1:1
+  an den Render-Service.
 - `''`, `undefined` und `null` werden ausgelassen; numerische Werte einschliesslich
   `0` werden als Text angehaengt. Fuer fuehrende Nullen Strings wie `'01'` verwenden.
-- Die bisherigen CIGS-Filter sind Standard: Exterieur ohne `AKZI` und `DHC`,
-  Interieur ohne `AKZ`. Anpassbar mit
-  `omittedConfigurationKeys={{ exterior: [], interior: [] }}`; ein explizites
-  leeres Array deaktiviert den Filter fuer die jeweilige Ansicht.
 - Qualitaeten: `FHD`, `WQHD`, `4K`, `4KHQ`, `8K`, `8KHQ`; Standard `FHD`.
   Der Render-Service muss die gewaehlte Qualitaet fuer die Kamera anbieten.
-- Die Dateiendung ist `.webp`, entsprechend dem vorhandenen CIGS-Schema.
-- Ohne `configuration.B` **und** ohne explizite `baureihe`-Prop wirft der
-  Viewer einen Fehler, da die Baureihe fester Bestandteil des Hash-Prefixes ist.
 
 Das Paket enthaelt weder Produktbilder noch einen Render-Service.
-**Das bisherige einzelne `C360INT`-Panorama wird nicht in Kamera-Einzelbilder
-konvertiert.** Fuer das neue Interieur werden reale perspektivische Renderings
-mit den konfigurierten Kamera-IDs benoetigt.
 
 ### Konfiguration aendern
 
 Ein neues `configuration`-Objekt uebergeben, beispielsweise
 `{ ...configuration, P: 'FFFFFF' }`. Der Viewer baut aktuelle Bilder,
-Nachbar-Preloads und Thumbnails neu auf. Die gemerkten Bildindizes fuer beide
-Ansichten bleiben erhalten. Bei kuerzeren Kameralisten wird der Index begrenzt.
+Nachbar-Preloads und Thumbnails neu auf. Der gemerkte Bildindex bleibt
+erhalten; bei kuerzeren Kameralisten wird er begrenzt.
 Kameralisten ebenfalls unveraenderlich behandeln und als neue Arrays uebergeben.
 
 ### Externe Kamerasteuerung
@@ -192,43 +187,33 @@ Kameralisten ebenfalls unveraenderlich behandeln und als neue Arrays uebergeben.
 import { useState } from 'react';
 import {
   CigsViewer,
-  DEFAULT_EXTERIOR_CAMERAS,
-  DEFAULT_INTERIOR_CAMERAS,
+  DEFAULT_CAMERAS,
   type ViewerRenderOptions,
-  type ViewerViewMode,
 } from 'cigs-viewer';
 
 export function ControlledPreview(props: ViewerRenderOptions) {
-  const [viewMode, setViewMode] = useState<ViewerViewMode>('exterior');
-  const [cameraIds, setCameraIds] = useState({
-    exterior: (props.exteriorCameras ?? DEFAULT_EXTERIOR_CAMERAS)[0]?.id,
-    interior: (props.interiorCameras ?? DEFAULT_INTERIOR_CAMERAS)[0]?.id,
-  });
-  const cameraId = cameraIds[viewMode];
+  const [cameraId, setCameraId] = useState(
+    () => (props.cameras ?? DEFAULT_CAMERAS.map((camera) => camera.id))[0]
+  );
 
   return (
     <CigsViewer
       {...props}
-      viewMode={viewMode}
-      {...(cameraId === undefined ? {} : { cameraId })}
-      onViewModeChange={setViewMode}
-      onFrameChange={({ viewMode: mode, frame }) =>
-        setCameraIds((current) => ({ ...current, [mode]: frame.cameraId }))
-      }
+      cameraId={cameraId}
+      onFrameChange={({ frame }) => setCameraId(frame.cameraId)}
     />
   );
 }
 ```
 
-`cameraId` waehlt eine Kamera in der aktiven Ansicht. Mit
-`onFrameChange` uebernimmt die Host-App den gewuenschten Wechsel nach Swipe,
-Tastatur oder Button. Kontrollierte Props aendern sich erst, wenn der Host sie
-aktualisiert. `viewMode` und `cameraId` beim externen Ansichtwechsel gemeinsam
-aktualisieren; die ID muss in der neuen Ansicht existieren.
+`cameraId` waehlt eine bestimmte Kamera. Mit `onFrameChange` uebernimmt die
+Host-App den gewuenschten Wechsel nach Swipe, Tastatur oder Button.
+Kontrollierte Props aendern sich erst, wenn der Host sie aktualisiert; die
+ID muss in der (ggf. neuen) `cameras`-Auswahl existieren.
 
 Alternativ ist `frameIndex` als nullbasierter kontrollierter Index verfuegbar.
 **Nicht gleichzeitig mit `cameraId` verwenden.** Ohne beide Props verwaltet
-der Viewer die Indizes selbst. Bei veraenderlichen Kameralisten muss die
+der Viewer den Index selbst. Bei veraenderlichen Kameralisten muss die
 Host-App kontrollierte Kamera-IDs ebenfalls aktualisieren.
 
 ## API
@@ -236,24 +221,20 @@ Host-App kontrollierte Kamera-IDs ebenfalls aktualisieren.
 | Prop | Default | Bedeutung |
 | --- | --- | --- |
 | `configuration` | erforderlich | `Readonly<Record<string, string \| number \| null \| undefined>>` |
-| `baseUrl` | erforderlich | HTTP(S)-Adresse oder Root-relatives Verzeichnis wie `/renders` |
-| `baureihe` | aus `configuration.B` abgeleitet | Optionaler Override fuer den Baureihe-Prefix im gehashten Bildpfad, z. B. `'B01'`; erforderlich, wenn `configuration.B` fehlt |
+| `baseUrl` | erforderlich | API-Basis-URL des CIGS-Render-Service fuer `POST /generate`, z. B. `http://localhost:3234` oder `https://cigs.elferplatz.com` (keine Bild-CDN-URL) |
 | `cameras` | alle System-Kameras | `readonly ViewerCameraId[]`, z. B. `['C1', 'C6']`; `[]` zeigt den Leerzustand |
-| `exteriorCameras`, `interiorCameras` | jeweiliger Katalog | Veraltete separate Kamera-Arrays; nicht mit `cameras` kombinieren |
 | `quality` | `FHD` | CIGS-Qualitaet der dargestellten Bilder und Preloads |
-| `thumbnailQuality` | - | Optionale Thumbnail-Qualitaet; ebenfalls automatisch erzeugte Pfade |
-| `omittedConfigurationKeys` | Ext: `AKZI`, `DHC`; Int: `AKZ` | Optionale Filter pro Ansicht |
-| `viewMode` / `defaultViewMode` | intern / `exterior` | Kontrollierte bzw. initiale Ansicht |
-| `cameraId` | intern | Kontrollierte Kamera-ID in der aktiven Ansicht |
+| `thumbnailQuality` | - | Optionale Thumbnail-Qualitaet; ebenfalls per `/generate` aufgeloest |
+| `cameraId` | intern | Kontrollierte Kamera-ID |
 | `frameIndex` / `defaultFrameIndex` | intern / `0` | Kontrollierter bzw. initialer nullbasierter Index |
-| `onViewModeChange` | - | `(viewMode) => void` |
-| `onFrameChange` | - | `({ viewMode, frameIndex, frame }) => void`; `frame` enthaelt `cameraId`, `src`, optional `alt`, `thumbnailSrc` |
+| `onFrameChange` | - | `({ frameIndex, frame }) => void`; `frame` enthaelt `cameraId`, `src`, optional `alt`, `thumbnailSrc` |
 | `onImageError` | - | `(error, change) => void` fuer das angezeigte Bild |
+| `onGenerateError` | - | `(error) => void`, wenn ein `POST /generate`-Aufruf fehlschlaegt |
 | `loop` | `true` | Zyklische Navigation |
 | `dragMode` | `'slide'` | Echter Bild-Slider; `'sequence'` aktiviert das bisherige kontinuierliche Durchschalten |
 | `pixelsPerFrame` | `24` | Positive ganzzahlige Drag-Distanz in CSS-Pixeln, nur fuer `dragMode='sequence'` |
-| `preloadRadius` | `'all'` | Gesamte aktive Ansicht in Nachbarpaaren; alternativ 0-4 Nachbarbilder pro Richtung |
-| `showThumbnails` | `false` | Kamera-Thumbnails bei mehreren Kameras der aktiven Ansicht; ohne `thumbnailQuality` werden geladene Hauptbilder wiederverwendet |
+| `preloadRadius` | `'all'` | Gesamte Kameraliste in Nachbarpaaren; alternativ 0-4 Nachbarbilder pro Richtung |
+| `showThumbnails` | `false` | Kamera-Thumbnails bei mehreren Kameras; ohne `thumbnailQuality` werden geladene Hauptbilder wiederverwendet |
 | `enableZoom` | `false` | Mausrad-Zoom mit gezieltem 4K-Nachladen; Ziehen verschiebt den Ausschnitt |
 | `maxZoom` | `4` | Maximale Zoomstufe als Zahl groesser/gleich 1 |
 | `labels` | Englisch | Teilmenge von `ViewerLabels`, inklusive Lade-, Fehler-, Retry- und Anleitungstexten |
@@ -267,9 +248,9 @@ Callbacks, keine manuell zu uebergebenden Props. `ViewerFrame` ist ein Ausgabety
 Der interne Bild-Renderer ist kein oeffentlicher Package-Export.
 
 Leere Kameralisten zeigen einen Leerzustand. Nach dem Filtern muss mindestens
-ein Konfigurationscode uebrig bleiben. Doppelte Kamera-IDs innerhalb einer
-Ansicht, unbekannte kontrollierte Kamera-IDs und ungueltige Optionen werfen
-explizite Fehler fuer eine Host-Error-Boundary.
+ein Konfigurationscode uebrig bleiben. Doppelte Kamera-IDs, unbekannte
+kontrollierte Kamera-IDs und ungueltige Optionen werfen explizite Fehler fuer
+eine Host-Error-Boundary.
 
 Dateinamen-Tokens erlauben Buchstaben, Ziffern, `_` und `-`. Pfade, Querystrings
 und URL-Steuerzeichen sind in Konfigurationswerten oder Kamera-IDs nicht erlaubt.
@@ -280,7 +261,7 @@ Bildladefehler sind sichtbar, werden gemeldet und koennen erneut versucht werden
 
 ```tsx
 <CigsViewer
-  baseUrl="https://cdn.cigs.elferplatz.com"
+  baseUrl="https://cigs.elferplatz.com"
   configuration={{ B: '01', M: '01', P: '070707', PMV: '100' }}
   cameras={['C1', 'C2', 'C6']}
   showThumbnails
@@ -289,31 +270,25 @@ Bildladefehler sind sichtbar, werden gemeldet und koennen erneut versucht werden
 ```
 
 Pfeile liegen links und rechts im Bild, die Thumbnail-Leiste am unteren Bildrand.
-Der Bildzaehler ist nur noch fuer Screenreader vorhanden. Der Ansichtswechsel
-steht im Exterieur als letztes Interieur-Thumbnail und im Interieur als erstes
-Exterieur-Thumbnail. Die Vorschau zeigt die zuletzt ausgewaehlte Kamera der anderen Ansicht;
-der Wechsel behaelt wie bisher deren letzte Auswahl bei. Ohne Kamera-Thumbnails
-bleibt bei zwei verfuegbaren Bereichen ein beschrifteter Ansichtswechsel verfuegbar.
-Fehlt einer der Bereiche, wird dieser Schalter nicht eingeblendet.
+Der Bildzaehler ist nur noch fuer Screenreader vorhanden.
 Die Thumbnail-Leiste legt keinen Verlauf oder Schleier ueber das Hauptbild.
-Bei nur einer Kamera in der aktiven Ansicht wird deren Kamera-Thumbnail
-automatisch ausgeblendet und nicht separat vorgeladen. Der Ansichtswechsel
-bleibt verfuegbar, wenn beide Bereiche Kameras enthalten.
+Bei nur einer Kamera wird das Kamera-Thumbnail automatisch ausgeblendet und
+nicht separat vorgeladen.
 
-Pfeile, Tastatur und Thumbnails (einschliesslich Ansichtswechsel) verwenden
-dieselbe Wisch-/Parallax-Animation wie Drag-Gesten. Ein Thumbnail-Sprung zeigt
-direkt die ausgewaehlte Zielkamera im Hintergrund, ohne Zwischenkameras
-durchzuschalten. Schnelle Eingaben schliessen die vorherige Auswahl ab und
-animieren von dort weiter. Auswahl-Callbacks werden am Ende der Animation
-ausgeloest; bei `prefers-reduced-motion` wird sofort gewechselt.
-Klick- und Tastaturwechsel dauern 600 ms mit sanftem Anlauf und anschliessender
-Beschleunigung. Das Einrasten nach einem echten Swipe bleibt bei 220 ms.
+Pfeile, Tastatur und Thumbnails verwenden dieselbe Wisch-/Parallax-Animation
+wie Drag-Gesten. Ein Thumbnail-Sprung zeigt direkt die ausgewaehlte
+Zielkamera im Hintergrund, ohne Zwischenkameras durchzuschalten. Schnelle
+Eingaben schliessen die vorherige Auswahl ab und animieren von dort weiter.
+Auswahl-Callbacks werden am Ende der Animation ausgeloest; bei
+`prefers-reduced-motion` wird sofort gewechselt. Klick- und Tastaturwechsel
+dauern 600 ms mit sanftem Anlauf und anschliessender Beschleunigung. Das
+Einrasten nach einem echten Swipe bleibt bei 220 ms.
 
 `enableZoom` aktiviert das Mausrad nur ueber der Bildflaeche, nicht ueber den
 Bedienelementen. Gezoomt wird um die Mausposition, zwischen 1x und `maxZoom`.
 Ab vergroesserter Darstellung verschiebt Ziehen den Ausschnitt statt Kameras
 weiterzuschalten; Pfeile, Thumbnails und Tastatur bleiben bedienbar.
-Escape oder "Reset zoom" setzen auf 1x zurueck. Kamera-, Ansichts- und
+Escape oder "Reset zoom" setzen auf 1x zurueck. Kamera- und
 Konfigurationswechsel, Groessenaenderungen oder `enableZoom={false}` setzen
 den Zoom ebenfalls zurueck. Ohne Zoom-Prop bleibt normales Seitenscrollen erhalten;
 Strg-/Cmd-Mausrad bleibt immer dem Browser vorbehalten.
@@ -357,7 +332,7 @@ const classNames = {
 } satisfies ViewerClassNames;
 
 <CigsViewer
-  baseUrl="https://cdn.cigs.elferplatz.com"
+  baseUrl="https://cigs.elferplatz.com"
   configuration={{ B: '01', M: '01', P: '070707', PMV: '100' }}
   cameras={['C1', 'C2', 'C6']}
   showThumbnails
@@ -367,7 +342,7 @@ const classNames = {
 
 Verfuegbare Schluessel: `root`, `viewport`, `navigation`, `previousButton`,
 `nextButton`, `zoomResetButton`, `thumbnails`, `thumbnail`, `thumbnailImage`,
-`viewSwitchButton`, `fullscreenButton` und `controlsAgenda`.
+`fullscreenButton` und `controlsAgenda`.
 `navigation` betrifft nur den Wrapper des Default-Layouts. `thumbnailImage`
 gestaltet sowohl das Vorschaubild als auch seinen Platzhalter, damit eigene
 Breiten und Hoehen beim Laden stabil bleiben.
@@ -399,7 +374,7 @@ import {
 } from 'cigs-viewer';
 
 <CigsViewer
-  baseUrl="https://cdn.cigs.elferplatz.com"
+  baseUrl="https://cigs.elferplatz.com"
   configuration={{ B: '01', M: '01', P: '070707', PMV: '100' }}
   cameras={['C1', 'C2', 'C6']}
   showThumbnails
@@ -419,10 +394,9 @@ import {
   hinzugefuegten Default-Controls.
 - `CigsViewerPreviousButton` und `CigsViewerNextButton` navigieren automatisch.
 - `CigsViewerZoomResetButton` erscheint nur bei vergroessertem Bild.
-- `CigsViewerThumbnails` enthaelt Kameraauswahl und Ansichtswechsel wie bisher:
-  Bei einer Kamera wird deren Thumbnail ausgeblendet; `showThumbnails={false}`
-  unterdrueckt die Kamera-Thumbnails. Ein benoetigter Ansichtswechsel bleibt.
-- `CigsViewerViewSwitchButton` kann bei Bedarf separat platziert werden.
+- `CigsViewerThumbnails` enthaelt die Kameraauswahl: Bei nur einer Kamera wird
+  ihr Thumbnail ausgeblendet; `showThumbnails={false}` unterdrueckt die
+  Kamera-Thumbnails.
 
 Die Komponenten muessen innerhalb ihres `CigsViewer` verwendet werden. Auch
 Controls ausserhalb der Bildflaeche funktionieren dort ohne eigene Click-Handler.
@@ -479,18 +453,16 @@ kann die Viewer-Aktion bewusst unterbinden.
   dort steuert `pixelsPerFrame` wie bisher die Empfindlichkeit.
 - Pro Viewer laedt zuerst der aktuelle Frame allein. Danach laden links 1 und
   rechts 1 parallel, dann links 2 und rechts 2 parallel usw. bis zum Ende der
-  aktiven Ansicht. Das naechste Paar startet erst, wenn beide Bilder des
+  Kameraliste. Das naechste Paar startet erst, wenn beide Bilder des
   vorherigen Paars mit `load` oder `error` abgeschlossen sind. Es laufen maximal
   zwei Hintergrund-Requests gleichzeitig; bereits geladene Bilder werden uebersprungen,
   ohne Bilder aus unterschiedlichen Abstaenden zu einem neuen Paar zu mischen.
   `loop` bestimmt das Verhalten an den Enden; doppelte URLs werden uebersprungen.
   Neue Konfigurationen verwerfen ausstehende alte Requests. Ein Kamerawechsel
   priorisiert den neu ausgewaehlten Frame; ein Retry pausiert die Hintergrund-Queue.
-- Die inaktive Kamerasequenz wird nicht vorgeladen. Nur das Ansichtswechsel-Thumbnail
-  wird bei `showThumbnails` zuletzt ueber dieselbe Queue geladen.
-  `preloadRadius={0}` deaktiviert
-  Hintergrund-Frames; 1-4 begrenzt den Abstand. Slider-Vorschauen starten keine
-  eigenen Requests: noch nicht geladene Nachbarn zeigen den Ladehinweis.
+- `preloadRadius={0}` deaktiviert Hintergrund-Frames; 1-4 begrenzt den Abstand.
+  Slider-Vorschauen starten keine eigenen Requests: noch nicht geladene
+  Nachbarn zeigen den Ladehinweis.
 - Separate Thumbnail-URLs laufen weiterhin einzeln durch dieselbe Queue, nach den Frame-URLs.
   Bereits geladene identische URLs werden wiederverwendet. Bis dahin erscheinen
   bei erstmaligem Laden nummerierte Kamera-Buttons statt parallel startender Requests.
@@ -540,12 +512,31 @@ registrieren. Neu sind unter anderem die gemeinsame `cameras`-Auswahl,
 konfigurierbarer Zoom mit gezieltem 4K-Nachladen und weiche
 Konfigurationsuebergaenge.
 
-Ab der naechsten Version werden Bildpfade nicht mehr im Klartext gebaut,
-sondern gemaess der CIGS-Frontend-Hashing-Regel gehasht (siehe
-[So werden die Pfade gebaut](#so-werden-die-pfade-gebaut)). Host-Apps, die
-bisher Klartext-URLs geparst oder erwartet haben, muessen darauf verzichten;
-die neue optionale Prop `baureihe` erlaubt einen expliziten Override, falls
-`configuration.B` fehlt oder abweicht.
+Ab der naechsten Version baut der Viewer Bild-URLs nicht mehr selbst
+(weder im Klartext noch gehasht), sondern bezieht sie ausschliesslich ueber
+`POST {baseUrl}/generate` vom CIGS-Render-Service (siehe
+[Wie Bilder geladen werden](#wie-bilder-geladen-werden)). `baseUrl` muss
+daher auf die **API** des Render-Service zeigen (z. B. `http://localhost:3234`
+oder `https://cigs.elferplatz.com`), nicht auf eine Bild-CDN-URL. Host-Apps,
+die bisher synchron verfuegbare Bildpfade erwartet haben (auch bei
+Server-Side Rendering), muessen jetzt auf die asynchrone Aufloesung warten;
+die Prop `baureihe` entfaellt ersatzlos.
+
+Ab der naechsten Version entfaellt die Trennung zwischen Exterieur und
+Interieur vollstaendig: Der Viewer kennt nur noch **eine** Kameraliste. Die
+Props `exteriorCameras`/`interiorCameras`, `viewMode`/`defaultViewMode`/
+`onViewModeChange` sowie die Komponente `CigsViewerViewSwitchButton`
+entfallen ersatzlos; `cameras` waehlt nun eine einzige, flache Liste aus dem
+System-Katalog (`DEFAULT_CAMERAS` statt der bisherigen getrennten
+`EXTERIOR_CAMERAS`/`INTERIOR_CAMERAS`/`DEFAULT_EXTERIOR_CAMERAS`/
+`DEFAULT_INTERIOR_CAMERAS`).
+`ViewerFrameChange`/`onFrameChange` und `onGenerateError` haben kein
+`viewMode`-Feld bzw. keinen `viewMode`-Parameter mehr. Host-Apps, die einen
+Ansichtswechsel abgebildet haben, muessen diesen entfernen und stattdessen
+eine einzige, ggf. gemischte Kameraliste (z. B. `['C1', ..., 'C6', ...]`)
+uebergeben. Ausserdem entfaellt `omittedConfigurationKeys` ersatzlos: der
+Viewer entscheidet nie, welche Konfigurations-Keys gesendet werden - die
+volle `configuration` geht immer 1:1 an `/generate`.
 
 ## Entwicklung und lokale Installation
 
@@ -603,13 +594,13 @@ Der Vite-Resolver dedupliziert React fuer die lokale Paketverknuepfung.
 - Links steht ausschliesslich die wiederverwendbare Viewer-Komponente. Das
   JSX-Beispiel darunter enthaelt die aktuelle `cameras`-Liste und Optionen,
   ergaenzt um Einzelkamera-Beispiele.
-- Feste Bildquelle **https://cdn.cigs.elferplatz.com**, ohne URL-Eingabe oder lokale
-  Mock-Bilder. Die Demo benoetigt eine Verbindung zum Render-Service und sendet
-  die angewendeten Konfigurationscodes als Bildpfade an diesen Host.
-- Die Paket-Filter fuer Exterieur/Interieur bleiben aktiv. Konfigurationen,
-  die nach dem Filtern keine Render-Codes enthalten, zeigen einen Fehler;
-  der Editor bleibt zum Korrigieren bedienbar. Fehlende Server-Bilder werden
-  vom Viewer mit seiner Fehler-/Retry-Anzeige behandelt.
+- Feste API-Basis-URL: `http://localhost:3234` im Dev-Server, `https://cigs.elferplatz.com`
+  im Produktions-Build (kein URL-Eingabefeld, keine lokalen Mock-Bilder). Die
+  Demo benoetigt eine Verbindung zum Render-Service und ruft darueber
+  `POST /generate` mit den angewendeten Konfigurationen und Kameras auf.
+- Fehlende Render-Codes nach dem Filtern zeigen einen Fehler; der Editor
+  bleibt zum Korrigieren bedienbar. Fehlende Server-Bilder werden vom Viewer
+  mit seiner Fehler-/Retry-Anzeige behandelt.
 
 ```bash
 npm run demo:build

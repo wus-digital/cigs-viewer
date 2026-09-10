@@ -2,13 +2,11 @@ import { forwardRef } from 'react';
 import {
   arrowClasses,
   fullscreenButtonClasses,
-  thumbnailButtonClasses,
   zoomResetClasses,
 } from '../constants/tailwind.js';
 import { useViewerContext } from './ViewerContext.js';
 import { ViewerButton } from './ViewerButton.js';
 import type { CigsViewerButtonProps } from './ViewerButton.js';
-import { ThumbnailImage } from './ThumbnailImage.js';
 
 function Arrow({ previous }: { previous: boolean }) {
   return (
@@ -160,58 +158,6 @@ export const CigsViewerZoomResetButton = forwardRef<
       action={zoom.reset}
     >
       {props.asChild ? children : (children ?? labels.resetZoom)}
-    </ViewerButton>
-  );
-});
-
-export const CigsViewerViewSwitchButton = forwardRef<
-  HTMLButtonElement,
-  CigsViewerButtonProps
->(function CigsViewerViewSwitchButton({ children, ...props }, ref) {
-  const {
-    frames,
-    alternateFrame,
-    viewMode,
-    showThumbnails,
-    labels,
-    classNames,
-    loading,
-    switchView,
-  } = useViewerContext('CigsViewerViewSwitchButton');
-  if (!alternateFrame || !frames.length) return null;
-  const alternateMode = viewMode === 'exterior' ? 'interior' : 'exterior';
-  const src = alternateFrame.thumbnailSrc ?? alternateFrame.src;
-  return (
-    <ViewerButton
-      title={labels[alternateMode]}
-      {...props}
-      ref={ref}
-      marker='civ__view-thumbnail'
-      slot='viewSwitchButton'
-      defaults={thumbnailButtonClasses}
-      slotOverride={classNames?.viewSwitchButton}
-      label={labels[alternateMode]}
-      unavailable={false}
-      action={switchView}
-    >
-      {props.asChild
-        ? children
-        : (children ?? (
-            <>
-              {showThumbnails && (
-                <ThumbnailImage
-                  src={src}
-                  ready={loading.enabled && loading.loadedSources.has(src)}
-                  index={0}
-                  placeholder=''
-                  className={classNames?.thumbnailImage}
-                />
-              )}
-              <span className='civ__view-label absolute inset-x-0 bottom-0 bg-black/65 px-[2px] py-[3px] text-center text-[10px] leading-[1.2] [overflow-wrap:anywhere] text-white'>
-                {labels[alternateMode]}
-              </span>
-            </>
-          ))}
     </ViewerButton>
   );
 });

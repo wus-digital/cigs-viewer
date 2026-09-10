@@ -10,14 +10,10 @@ import {
   validateFrames,
   validateInteger,
 } from '../utils/frames.js';
-import type { ImageFrameViewerProps, ViewerViewMode } from '../types/viewer.js';
+import type { ImageFrameViewerProps } from '../types/viewer.js';
 
 export function ImageFrameViewer({
-  exteriorFrames,
-  interiorFrames,
-  viewMode,
-  defaultViewMode = 'exterior',
-  onViewModeChange,
+  frames,
   frameIndex,
   cameraId,
   defaultFrameIndex = 0,
@@ -36,31 +32,9 @@ export function ImageFrameViewer({
   children,
   style,
 }: ImageFrameViewerProps) {
-  const [internalMode, setInternalMode] = useState(defaultViewMode);
-  const [indices, setIndices] = useState({
-    exterior: defaultFrameIndex,
-    interior: defaultFrameIndex,
-  });
-  const requestedMode = viewMode ?? internalMode;
-  const activeMode =
-    viewMode === undefined
-      ? requestedMode === 'exterior' &&
-        !exteriorFrames.length &&
-        interiorFrames.length
-        ? 'interior'
-        : requestedMode === 'interior' &&
-            !interiorFrames.length &&
-            exteriorFrames.length
-          ? 'exterior'
-          : requestedMode
-      : requestedMode;
-  if (viewMode === undefined && activeMode !== internalMode)
-    setInternalMode(activeMode);
+  const [internalIndex, setInternalIndex] = useState(defaultFrameIndex);
 
-  useMemo(() => {
-    validateFrames(exteriorFrames, 'exteriorFrames');
-    validateFrames(interiorFrames, 'interiorFrames');
-  }, [exteriorFrames, interiorFrames]);
+  useMemo(() => validateFrames(frames, 'frames'), [frames]);
   validateInteger(defaultFrameIndex, 'defaultFrameIndex', 0);
   if (frameIndex !== undefined) validateInteger(frameIndex, 'frameIndex', 0);
   if (preloadRadius !== 'all')
@@ -77,12 +51,8 @@ export function ImageFrameViewer({
   if (dragMode !== 'slide' && dragMode !== 'sequence') {
     throw new TypeError('dragMode must be slide or sequence.');
   }
-  if (activeMode !== 'exterior' && activeMode !== 'interior') {
-    throw new TypeError('viewMode must be exterior or interior.');
-  }
 
   const labels = { ...defaultLabels, ...customLabels };
-  const frames = activeMode === 'exterior' ? exteriorFrames : interiorFrames;
   if (cameraId !== undefined && frameIndex !== undefined) {
     throw new TypeError('Use either cameraId or frameIndex, not both.');
   }
@@ -90,42 +60,29 @@ export function ImageFrameViewer({
     cameraId === undefined
       ? undefined
       : frames.findIndex((frame) => frame.cameraId === cameraId);
-  if (cameraIndex === -1) {
-    throw new RangeError(
-      `cameraId does not exist in the ${activeMode} cameras.`
-    );
+  // Frames resolve asynchronously (from POST /generate), so a controlled
+  // cameraId can't be validated yet while frames.length is still 0 - once
+  // frames arrive, normalizeFrame below clamps to a valid index either way.
+  if (cameraIndex === -1 && frames.length > 0) {
+    throw new RangeError('cameraId does not exist in the cameras.');
   }
   const currentIndex = normalizeFrame(
-    cameraIndex ?? frameIndex ?? indices[activeMode],
+    cameraIndex ?? frameIndex ?? internalIndex,
     frames.length,
     false
   );
-  if (indices[activeMode] !== currentIndex) {
-    setIndices((current) => ({ ...current, [activeMode]: currentIndex }));
+  if (internalIndex !== currentIndex) {
+    setInternalIndex(currentIndex);
   }
-  const alternateMode = activeMode === 'exterior' ? 'interior' : 'exterior';
-  const alternateFrames =
-    alternateMode === 'exterior' ? exteriorFrames : interiorFrames;
-  const alternateIndex = normalizeFrame(
-    frameIndex ?? indices[alternateMode],
-    alternateFrames.length,
-    false
-  );
 
   function selectFrame(index: number) {
     const nextIndex = normalizeFrame(index, frames.length, loop);
     const frame = frames[nextIndex];
     if (!frame || nextIndex === currentIndex) return;
     if (frameIndex === undefined && cameraId === undefined) {
-      setIndices((current) => ({ ...current, [activeMode]: nextIndex }));
+      setInternalIndex(nextIndex);
     }
-    onFrameChange?.({ viewMode: activeMode, frameIndex: nextIndex, frame });
-  }
-
-  function selectMode(mode: ViewerViewMode) {
-    if (mode === activeMode) return;
-    if (viewMode === undefined) setInternalMode(mode);
-    onViewModeChange?.(mode);
+    onFrameChange?.({ frameIndex: nextIndex, frame });
   }
 
   return (
@@ -137,13 +94,6 @@ export function ImageFrameViewer({
     >
       <ImageSequence
         frames={frames}
-        alternateFrame={
-          frames.length ? alternateFrames[alternateIndex] : undefined
-        }
-        onSwitchView={() =>
-          selectMode(activeMode === 'exterior' ? 'interior' : 'exterior')
-        }
-        viewMode={activeMode}
         frameIndex={currentIndex}
         loop={loop}
         dragMode={dragMode}

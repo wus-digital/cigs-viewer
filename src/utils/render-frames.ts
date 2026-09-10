@@ -1,18 +1,11 @@
 import { RENDER_QUALITIES } from '../types/viewer.js';
 import type {
   RenderConfiguration,
+  RenderQuality,
   ViewerCamera,
-  ViewerFrame,
   ViewerRenderOptions,
-  ViewerViewMode,
 } from '../types/viewer.js';
 import { resolveCameras } from './cameras.js';
-import { buildHashedImagePath } from './image-url-hash.js';
-
-const defaultOmittedKeys = {
-  exterior: ['AKZI', 'DHC'],
-  interior: ['AKZ'],
-} as const;
 
 function validateToken(value: string, name: string) {
   if (typeof value !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(value)) {
@@ -51,10 +44,9 @@ function normalizeBaseUrl(baseUrl: string): string {
   return baseUrl.replace(/\/+$/, '');
 }
 
-function buildRenderCode(
-  configuration: RenderConfiguration,
-  omittedKeys: readonly string[]
-): string {
+function buildConfigurationEntries(
+  configuration: RenderConfiguration
+): [string, string][] {
   if (
     !configuration ||
     typeof configuration !== 'object' ||
@@ -63,25 +55,14 @@ function buildRenderCode(
   ) {
     throw new TypeError('configuration must be a key-value object.');
   }
-  if (
-    !Array.isArray(omittedKeys) ||
-    omittedKeys.some((key) => typeof key !== 'string')
-  ) {
-    throw new TypeError(
-      'omittedConfigurationKeys must contain arrays of keys.'
-    );
-  }
-  const omitted = new Set(omittedKeys);
-  const codes: string[] = [];
-  // Preserve the host's insertion order: the existing CIGS URLs are not sorted.
+  const entries: [string, string][] = [];
+  // Preserve the host's insertion order and every key as-is: the viewer
+  // never decides which configuration keys to include or omit, it forwards
+  // the full configuration to POST /generate untouched (empty/undefined/null
+  // values are skipped since they aren't valid render tokens, not filtered
+  // out by choice).
   for (const [key, value] of Object.entries(configuration)) {
-    if (
-      omitted.has(key) ||
-      value === '' ||
-      value === undefined ||
-      value === null
-    )
-      continue;
+    if (value === '' || value === undefined || value === null) continue;
     validateToken(key, 'Configuration key');
     if (
       typeof value !== 'string' &&
@@ -93,48 +74,44 @@ function buildRenderCode(
     }
     const token = String(value);
     validateToken(token, 'Configuration value');
-    codes.push(`${key}${token}`);
+    entries.push([key, token]);
   }
-  if (codes.length === 0)
+  if (entries.length === 0)
     throw new TypeError(
       'configuration must contain at least one render code after filtering.'
     );
-  return codes.join('_');
+  return entries;
 }
 
-function resolveBaureihe(options: ViewerRenderOptions): string {
-  if (options.baureihe !== undefined) {
-    validateToken(options.baureihe, 'Baureihe');
-    return options.baureihe.toUpperCase();
-  }
-  const raw = options.configuration?.B;
-  const isValidRaw =
-    (typeof raw === 'string' && raw.trim() !== '') ||
-    (typeof raw === 'number' && Number.isFinite(raw));
-  if (!isValidRaw) {
-    throw new TypeError(
-      'baureihe or configuration.B is required to build hashed image URLs.'
-    );
-  }
-  const token = `B${raw}`.toUpperCase();
-  validateToken(token, 'Baureihe');
-  return token;
+/** Validated input for `POST /generate`: the resolved camera list and filtered configuration object. */
+export interface ViewerFramesConfig {
+  baseUrl: string;
+  quality: RenderQuality;
+  /** Quality requested for `zoomSrc`: `4K` for `FHD`/`WQHD`, otherwise the same as `quality`. */
+  zoomQuality: RenderQuality;
+  thumbnailQuality?: RenderQuality;
+  cameras: readonly ViewerCamera[];
+  configuration: Readonly<Record<string, string>>;
 }
 
-export function buildViewerFrames(options: ViewerRenderOptions): {
-  exteriorFrames: readonly ViewerFrame[];
-  interiorFrames: readonly ViewerFrame[];
-} {
+/**
+ * Validates viewer options and resolves everything needed to fetch every
+ * camera's image from `POST /generate` (filtered configuration + camera
+ * list). Fully synchronous - it never calls the network, it only prepares
+ * the request material `resolveViewFrames`/`resolveViewFramesProgressively`
+ * send to the CIGS render service.
+ */
+export function buildViewerFrameConfig(
+  options: ViewerRenderOptions
+): ViewerFramesConfig {
   const {
     configuration,
     baseUrl,
     quality = 'FHD',
     thumbnailQuality,
-    omittedConfigurationKeys,
   } = options;
-  const { exteriorCameras, interiorCameras } = resolveCameras(options);
+  const cameras = resolveCameras(options);
   const base = normalizeBaseUrl(baseUrl);
-  const baureihe = resolveBaureihe(options);
   if (
     !RENDER_QUALITIES.includes(quality) ||
     (thumbnailQuality !== undefined &&
@@ -142,43 +119,20 @@ export function buildViewerFrames(options: ViewerRenderOptions): {
   ) {
     throw new TypeError('Unsupported render quality.');
   }
-
-  function build(
-    cameras: readonly ViewerCamera[],
-    viewMode: ViewerViewMode
-  ): ViewerFrame[] {
-    if (!Array.isArray(cameras))
-      throw new TypeError(`${viewMode}Cameras must be an array.`);
-    const code = buildRenderCode(
-      configuration,
-      omittedConfigurationKeys?.[viewMode] ?? defaultOmittedKeys[viewMode]
-    );
-    const ids = new Set<string>();
-    return cameras.map((camera) => {
-      validateToken(camera?.id, 'Camera ID');
-      if (ids.has(camera.id))
-        throw new TypeError(`Duplicate ${viewMode} camera ID: ${camera.id}`);
-      ids.add(camera.id);
-      const hashedPath = (renderQuality: string) =>
-        `${base}/${buildHashedImagePath(baureihe, `${code}_PQM-${renderQuality}`, camera.id)}`;
-      return {
-        cameraId: camera.id,
-        src: hashedPath(quality),
-        zoomSrc: hashedPath(
-          quality === 'FHD' || quality === 'WQHD' ? '4K' : quality
-        ),
-        ...(camera.label === undefined ? {} : { alt: camera.label }),
-        ...(thumbnailQuality === undefined
-          ? {}
-          : {
-              thumbnailSrc: hashedPath(thumbnailQuality),
-            }),
-      };
-    });
+  const entries = buildConfigurationEntries(configuration);
+  const ids = new Set<string>();
+  for (const camera of cameras) {
+    validateToken(camera?.id, 'Camera ID');
+    if (ids.has(camera.id)) throw new TypeError(`Duplicate camera ID: ${camera.id}`);
+    ids.add(camera.id);
   }
 
   return {
-    exteriorFrames: build(exteriorCameras, 'exterior'),
-    interiorFrames: build(interiorCameras, 'interior'),
+    baseUrl: base,
+    quality,
+    zoomQuality: quality === 'FHD' || quality === 'WQHD' ? '4K' : quality,
+    ...(thumbnailQuality === undefined ? {} : { thumbnailQuality }),
+    cameras,
+    configuration: Object.fromEntries(entries),
   };
 }

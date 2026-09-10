@@ -15,7 +15,6 @@ export function useFrameLoading(
   radius: number | 'all',
   loop: boolean,
   showThumbnails: boolean,
-  alternateThumbnail: string | undefined,
   scope = ''
 ) {
   const plan = useMemo(() => {
@@ -34,9 +33,6 @@ export function useFrameLoading(
           scheduled.add(thumbnailSrc);
         }
       }
-      if (alternateThumbnail && !scheduled.has(alternateThumbnail)) {
-        batches.push([alternateThumbnail]);
-      }
     }
     const frameSources = new Map(
       frames.map((frame, index) => [frameIdentity(frame, index), frame.src])
@@ -47,7 +43,7 @@ export function useFrameLoading(
       batches,
       frames: frameSources,
     };
-  }, [frames, frameIndex, radius, loop, showThumbnails, alternateThumbnail]);
+  }, [frames, frameIndex, radius, loop, showThumbnails]);
   const [state, setState] = useState(() => ({
     scope,
     queue: new ImageLoadQueue(plan),

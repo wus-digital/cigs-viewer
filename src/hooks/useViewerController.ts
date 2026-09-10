@@ -10,14 +10,10 @@ import type {
   ViewerFrame,
   ViewerFrameChange,
   ViewerLabels,
-  ViewerViewMode,
 } from '../types/viewer.js';
 
 export interface ViewerControllerProps {
   frames: readonly ViewerFrame[];
-  alternateFrame: ViewerFrame | undefined;
-  onSwitchView: () => void;
-  viewMode: ViewerViewMode;
   frameIndex: number;
   loop: boolean;
   dragMode: 'slide' | 'sequence';
@@ -40,13 +36,11 @@ export function useViewerController(props: ViewerControllerProps) {
     loop,
     onSelect,
     dragMode,
-    viewMode,
     pixelsPerFrame,
     enableZoom,
     maxZoom,
     preloadRadius,
     showThumbnails,
-    alternateFrame,
   } = props;
   const [viewportElement, setViewportElement] = useState<HTMLDivElement | null>(
     null
@@ -60,7 +54,6 @@ export function useViewerController(props: ViewerControllerProps) {
     viewport: slideRef,
     motion,
     select,
-    switchView,
     completeTransition,
     handlers: slideHandlers,
     onTransitionEnd,
@@ -69,7 +62,7 @@ export function useViewerController(props: ViewerControllerProps) {
     frames.length,
     loop,
     onSelect,
-    JSON.stringify([viewMode, dragMode, loop, frames.map(({ src }) => src)]),
+    JSON.stringify([dragMode, loop, frames.map(({ src }) => src)]),
     viewportElement
   );
   const drag = useSequenceDrag(
@@ -77,12 +70,11 @@ export function useViewerController(props: ViewerControllerProps) {
     onSelect,
     completeTransition,
     frames.length > 1,
-    JSON.stringify([viewMode, dragMode]),
+    dragMode,
     viewportElement
   );
   const frame = frames[frameIndex];
   const zoomScope = JSON.stringify([
-    viewMode,
     dragMode,
     frameIndex,
     frame?.cameraId,
@@ -127,8 +119,7 @@ export function useViewerController(props: ViewerControllerProps) {
     preloadRadius,
     loop,
     showThumbnails,
-    alternateFrame?.thumbnailSrc ?? alternateFrame?.src,
-    JSON.stringify([viewMode, dragMode])
+    dragMode
   );
   function selectFrame(index: number, relative = false) {
     reset();
@@ -149,9 +140,5 @@ export function useViewerController(props: ViewerControllerProps) {
     handlers:
       scale > 1 ? zoomHandlers : dragMode === 'sequence' ? drag : slideHandlers,
     selectFrame,
-    switchView() {
-      reset();
-      switchView(viewMode === 'exterior' ? 1 : -1, props.onSwitchView);
-    },
   };
 }

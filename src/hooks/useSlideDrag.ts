@@ -19,7 +19,6 @@ export interface SlideMotion {
   settling: boolean;
   direction: -1 | 1;
   targetIndex?: number | undefined;
-  switchingView?: boolean;
   programmatic?: boolean;
 }
 
@@ -115,8 +114,7 @@ export function useSlideDrag(
     offset: number,
     target?: number,
     from = frameIndex,
-    prepare = false,
-    switchCallback?: () => void
+    prepare = false
   ) {
     clearScheduled();
     releasePointer();
@@ -124,11 +122,9 @@ export function useSlideDrag(
       from,
       target:
         target === undefined ? undefined : normalizeFrame(target, count, loop),
-      callback:
-        switchCallback ??
-        (() => {
-          if (target !== undefined) latestSelect.current(target);
-        }),
+      callback: () => {
+        if (target !== undefined) latestSelect.current(target);
+      },
     };
     pending.current = action;
     if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
@@ -143,7 +139,6 @@ export function useSlideDrag(
       settling: !stageFirst,
       direction: offset === 0 ? current.direction : offset < 0 ? 1 : -1,
       targetIndex: action.target,
-      switchingView: !!switchCallback,
       programmatic: prepare,
       scope,
       frameIndex: from,
@@ -180,16 +175,6 @@ export function useSlideDrag(
       return;
     }
     settle(-direction * width, next, from, true);
-  }
-
-  function switchView(direction: -1 | 1, callback: () => void) {
-    const from = completeTransition();
-    const width = viewport.current?.getBoundingClientRect().width ?? 0;
-    if (width <= 0) {
-      callback();
-      return;
-    }
-    settle(-direction * width, undefined, from, true, callback);
   }
 
   useEffect(() => {
@@ -287,7 +272,6 @@ export function useSlideDrag(
     viewport,
     motion,
     select,
-    switchView,
     completeTransition,
     onTransitionEnd(event: TransitionEvent<HTMLDivElement>) {
       if (

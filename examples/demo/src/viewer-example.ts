@@ -22,7 +22,6 @@ export const styledClassNames: ViewerClassNames = {
   thumbnails: 'gap-3',
   thumbnail: 'rounded-xl aria-pressed:border-sky-500 aria-pressed:shadow-none',
   thumbnailImage: 'h-12 w-20 rounded-lg',
-  viewSwitchButton: 'rounded-xl',
   zoomResetButton: 'rounded-full bg-slate-900',
 };
 

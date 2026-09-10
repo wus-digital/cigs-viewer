@@ -1,13 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react';
-import type {
-  EXTERIOR_CAMERAS,
-  INTERIOR_CAMERAS,
-} from '../constants/default-cameras.js';
+import type { DEFAULT_CAMERAS } from '../constants/default-cameras.js';
 
-export type ViewerViewMode = 'exterior' | 'interior';
-export type ViewerCameraId =
-  | (typeof EXTERIOR_CAMERAS)[number]['id']
-  | (typeof INTERIOR_CAMERAS)[number]['id'];
+export type ViewerCameraId = (typeof DEFAULT_CAMERAS)[number]['id'];
 
 export type RenderConfiguration = Readonly<
   Record<string, string | number | null | undefined>
@@ -34,23 +28,16 @@ export interface ViewerRenderOptions {
   configuration: RenderConfiguration;
   /** Absolute HTTP(S) URL or root-relative directory; no query string or hash. */
   baseUrl: string;
-  /** Selected system camera IDs, in swipe order per view. Omitted selects all; [] selects none. */
+  /** Selected system camera IDs, in swipe order. Omitted selects all; [] selects none. */
   cameras?: readonly ViewerCameraId[];
-  /** @deprecated Use cameras to select IDs from the system catalog. Cannot be combined with cameras. */
-  exteriorCameras?: readonly ViewerCamera[];
-  /** @deprecated Use cameras to select IDs from the system catalog. Cannot be combined with cameras. */
-  interiorCameras?: readonly ViewerCamera[];
   quality?: RenderQuality;
   /** Optional thumbnail quality, using the same configuration and camera. */
   thumbnailQuality?: RenderQuality;
-  /** Defaults match the existing CIGS render filters. [] disables a view's filter. */
-  omittedConfigurationKeys?: Partial<Record<ViewerViewMode, readonly string[]>>;
   /**
-   * Baureihe used as the unhashed URL prefix, e.g. `B01`. Defaults to
-   * `B${configuration.B}` (uppercased). Required if `configuration.B` is
-   * missing.
+   * Called when a `POST /generate` call fails. The viewer keeps showing
+   * previously resolved frames (if any) when this happens.
    */
-  baureihe?: string;
+  onGenerateError?: (error: Error) => void;
 }
 
 export interface ViewerFrame {
@@ -63,15 +50,12 @@ export interface ViewerFrame {
 }
 
 export interface ViewerFrameChange {
-  viewMode: ViewerViewMode;
   frameIndex: number;
   frame: ViewerFrame;
 }
 
 export interface ViewerLabels {
   viewer: string;
-  exterior: string;
-  interior: string;
   previous: string;
   next: string;
   loading: string;
@@ -98,18 +82,14 @@ export interface ViewerClassNames {
   thumbnail?: string;
   /** Applied to both the preview image and its placeholder wrapper for stable sizing. */
   thumbnailImage?: string;
-  viewSwitchButton?: string;
   fullscreenButton?: string;
   controlsAgenda?: string;
 }
 
 interface ViewerControlsProps {
-  viewMode?: ViewerViewMode;
-  defaultViewMode?: ViewerViewMode;
-  onViewModeChange?: (viewMode: ViewerViewMode) => void;
-  /** Zero-based index in the active view. Pair with onFrameChange when controlled. */
+  /** Zero-based index. Pair with onFrameChange when controlled. */
   frameIndex?: number;
-  /** Controlled camera ID in the active view; use instead of frameIndex. */
+  /** Controlled camera ID; use instead of frameIndex. */
   cameraId?: string;
   defaultFrameIndex?: number;
   onFrameChange?: (change: ViewerFrameChange) => void;
@@ -139,6 +119,5 @@ export interface CigsViewerProps
   extends ViewerRenderOptions, ViewerControlsProps {}
 
 export interface ImageFrameViewerProps extends ViewerControlsProps {
-  exteriorFrames: readonly ViewerFrame[];
-  interiorFrames: readonly ViewerFrame[];
+  frames: readonly ViewerFrame[];
 }

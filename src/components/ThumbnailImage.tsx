@@ -1,8 +1,5 @@
 import { useState } from 'react';
-import {
-  loadingVeilClasses,
-  thumbnailImageClasses,
-} from '../constants/tailwind.js';
+import { thumbnailImageClasses } from '../constants/tailwind.js';
 import { slotClasses } from '../utils/classes.js';
 
 interface Props {
@@ -37,22 +34,19 @@ export function ThumbnailImage({
       </span>
     );
   return (
-    <>
-      <img
-        className={slotClasses(
-          'civ__thumbnail-image',
-          thumbnailImageClasses,
-          className
-        )}
-        src={displayed}
-        alt=''
-        width={80}
-        height={45}
-        loading='lazy'
-        decoding='async'
-        draggable={false}
-      />
-      {displayed !== src && <span className={loadingVeilClasses} />}
-    </>
+    <img
+      className={slotClasses(
+        'civ__thumbnail-image',
+        thumbnailImageClasses,
+        className
+      )}
+      src={displayed}
+      alt=''
+      width={80}
+      height={45}
+      loading='lazy'
+      decoding='async'
+      draggable={false}
+    />
   );
 }

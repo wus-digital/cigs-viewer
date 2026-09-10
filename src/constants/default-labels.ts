@@ -2,12 +2,10 @@ import type { ViewerLabels } from '../types/viewer.js';
 
 export const defaultLabels: ViewerLabels = {
   viewer: 'Product viewer',
-  exterior: 'Exterior',
-  interior: 'Interior',
   previous: 'Previous image',
   next: 'Next image',
   loading: 'Loading image...',
-  empty: 'No images available for this view.',
+  empty: 'No images available.',
   error: 'The image could not be loaded.',
   retry: 'Retry',
   frames: 'Choose an image',
