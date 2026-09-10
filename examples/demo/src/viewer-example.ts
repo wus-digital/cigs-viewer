@@ -1,5 +1,6 @@
 import type {
   RenderConfiguration,
+  RenderQuality,
   ViewerCameraId,
   ViewerClassNames,
 } from 'cigs-viewer';
@@ -23,7 +24,6 @@ export const styledClassNames: ViewerClassNames = {
   thumbnailImage: 'h-12 w-20 rounded-lg',
   viewSwitchButton: 'rounded-xl',
   zoomResetButton: 'rounded-full bg-slate-900',
-  debug: 'bg-slate-50 text-slate-700',
 };
 
 export const customPreviousClasses =
@@ -39,6 +39,8 @@ interface ExampleOptions {
   configuration: RenderConfiguration;
   cameras: readonly ViewerCameraId[];
   enableZoom: boolean;
+  maxZoom: number;
+  quality: RenderQuality;
   showThumbnails: boolean;
   layout: ViewerLayout;
 }
@@ -48,6 +50,8 @@ export function viewerExample({
   configuration,
   cameras,
   enableZoom,
+  maxZoom,
+  quality,
   showThumbnails,
   layout,
 }: ExampleOptions) {
@@ -67,8 +71,10 @@ export function viewerExample({
   const props = `  baseUrl=${JSON.stringify(baseUrl)}
   configuration={${formatted(configuration)}}
   cameras={${JSON.stringify(cameras)}}
+  quality=${JSON.stringify(quality)}
   showThumbnails={${showThumbnails}}${enableZoom ? '\n  enableZoom' : ''}
-  showDebug${layout === 'styled' ? `\n  classNames={${formatted(styledClassNames)}}` : ''}`;
+  maxZoom={${maxZoom}}
+  ${layout === 'styled' ? `classNames={${formatted(styledClassNames)}}` : ''}`.trimEnd();
   if (layout !== 'custom') return `${imports}\n\n<CigsViewer\n${props}\n/>`;
   return `${imports}
 

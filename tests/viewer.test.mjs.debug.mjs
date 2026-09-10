@@ -562,11 +562,13 @@ test('compound: every public primitive fails clearly outside a provider', () => 
 });
 
 test('compound: fullscreen button toggles native fullscreen, auto-enables zoom and shows the controls agenda', async () => {
-  await render({ enableZoom: false });
-  assert.ok(button('View fullscreen'));
-  assert.equal(container.querySelector('.civ__controls-agenda'), null);
-  await click('View fullscreen');
+  console.log('T1'); await render({ enableZoom: false }); console.log('T2');
+  assert.ok(button('View fullscreen')); console.log('T3');
+  assert.equal(container.querySelector('.civ__controls-agenda'), null); console.log('T4');
+  await click('View fullscreen'); console.log('T5');
+  console.log('before assert', document.fullscreenElement === stage().closest('.civ'));
   assert.equal(document.fullscreenElement, stage().closest('.civ'));
+  console.log('T6');
   assert.ok(button('Exit fullscreen'));
   assert.ok(container.querySelector('.civ__controls-agenda'));
   sizeSlider();

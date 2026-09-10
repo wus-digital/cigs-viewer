@@ -13,15 +13,18 @@ const options = {
   configuration: { B: '01', M: '01', P: '070707', PMV: '100' },
   cameras: ['C1', 'C6'],
   enableZoom: false,
+  maxZoom: 4,
+  quality: 'FHD',
   showThumbnails: true,
 };
 
 test('default example preserves configuration, selected cameras and optional flags', () => {
   const source = viewerExample({ ...options, layout: 'default' });
   assert.match(source, /cameras=\{\["C1","C6"\]\}/);
+  assert.match(source, /quality="FHD"/);
   assert.match(source, /"P": "070707"/);
   assert.match(source, /"PMV": "100"/);
-  assert.match(source, /showDebug/);
+  assert.match(source, /maxZoom=\{4\}/);
   assert.doesNotMatch(
     source,
     /classNames=|CigsViewerViewport|enableZoom|styles\.css/
@@ -34,6 +37,7 @@ test('default example preserves configuration, selected cameras and optional fla
   });
   assert.match(changed, /showThumbnails=\{false\}/);
   assert.match(changed, /enableZoom/);
+  assert.match(changed, /maxZoom=\{4\}/);
 });
 
 test('styled example includes the exact shared slot overrides used by the demo', () => {

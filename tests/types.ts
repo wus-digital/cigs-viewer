@@ -15,6 +15,7 @@ import {
   CigsViewerZoomResetButton,
   CigsViewerThumbnails,
   CigsViewerViewSwitchButton,
+  CigsViewerFullscreenButton,
 } from 'cigs-viewer';
 import { createElement, createRef } from 'react';
 
@@ -48,6 +49,11 @@ export const invalidZoom: CigsViewerProps = {
   // @ts-expect-error Zoom activation is a boolean.
   enableZoom: 'wheel',
 };
+export const invalidMaxZoom: CigsViewerProps = {
+  ...props,
+  // @ts-expect-error Maximum zoom is numeric.
+  maxZoom: '4x',
+};
 export const defaultCameras: CigsViewerProps = {
   configuration: { B: '01' },
   baseUrl: '/renders',
@@ -65,7 +71,8 @@ const classNames: ViewerClassNames = {
   thumbnail: 'aria-pressed:border-blue-500',
   thumbnailImage: 'object-cover',
   viewSwitchButton: 'border-blue-500',
-  debug: 'text-sm',
+  fullscreenButton: 'bg-white',
+  controlsAgenda: 'text-xs',
 };
 export const invalidSlot: ViewerClassNames = {
   // @ts-expect-error Unknown styling slots are rejected.
@@ -91,6 +98,7 @@ export const compoundViewer = createElement(
     createElement('button', null, 'Next')
   ),
   createElement(CigsViewerZoomResetButton),
+  createElement(CigsViewerFullscreenButton),
   createElement(CigsViewerThumbnails, thumbnailsProps),
   createElement(CigsViewerViewSwitchButton)
 );

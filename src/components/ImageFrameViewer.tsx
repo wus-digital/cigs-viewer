@@ -29,7 +29,7 @@ export function ImageFrameViewer({
   preloadRadius = 'all',
   showThumbnails = false,
   enableZoom = false,
-  showDebug = false,
+  maxZoom = 4,
   labels: customLabels,
   className,
   classNames,
@@ -69,8 +69,10 @@ export function ImageFrameViewer({
   if (typeof enableZoom !== 'boolean') {
     throw new TypeError('enableZoom must be a boolean.');
   }
-  if (typeof showDebug !== 'boolean') {
-    throw new TypeError('showDebug must be a boolean.');
+  if (typeof maxZoom !== 'number' || !Number.isFinite(maxZoom) || maxZoom < 1) {
+    throw new TypeError(
+      'maxZoom must be a finite number greater than or equal to 1.'
+    );
   }
   if (dragMode !== 'slide' && dragMode !== 'sequence') {
     throw new TypeError('dragMode must be slide or sequence.');
@@ -149,7 +151,7 @@ export function ImageFrameViewer({
         preloadRadius={preloadRadius}
         showThumbnails={showThumbnails}
         enableZoom={enableZoom}
-        showDebug={showDebug}
+        maxZoom={maxZoom}
         classNames={classNames}
         labels={labels}
         onSelect={selectFrame}

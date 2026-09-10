@@ -24,35 +24,35 @@ export function ThumbnailImage({
     ready ? src : undefined
   );
   if (ready && displayed !== src) setDisplayed(src);
+  if (!displayed)
+    return (
+      <span
+        className={slotClasses(
+          'civ__thumbnail-placeholder',
+          `grid place-items-center ${thumbnailImageClasses}`,
+          className
+        )}
+      >
+        {placeholder ?? index + 1}
+      </span>
+    );
   return (
-    <span
-      className={slotClasses(
-        'civ__thumbnail-placeholder',
-        'relative grid h-[36px] w-[64px] place-items-center',
-        className
-      )}
-    >
-      {displayed ? (
-        <>
-          <img
-            className={slotClasses(
-              'civ__thumbnail-image',
-              thumbnailImageClasses,
-              className
-            )}
-            src={displayed}
-            alt=''
-            width={80}
-            height={45}
-            loading='lazy'
-            decoding='async'
-            draggable={false}
-          />
-          {displayed !== src && <span className={loadingVeilClasses} />}
-        </>
-      ) : (
-        (placeholder ?? index + 1)
-      )}
-    </span>
+    <>
+      <img
+        className={slotClasses(
+          'civ__thumbnail-image',
+          thumbnailImageClasses,
+          className
+        )}
+        src={displayed}
+        alt=''
+        width={80}
+        height={45}
+        loading='lazy'
+        decoding='async'
+        draggable={false}
+      />
+      {displayed !== src && <span className={loadingVeilClasses} />}
+    </>
   );
 }

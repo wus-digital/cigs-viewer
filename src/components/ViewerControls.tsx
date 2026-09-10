@@ -1,4 +1,5 @@
 import {
+  CigsViewerFullscreenButton,
   CigsViewerNextButton,
   CigsViewerPreviousButton,
   CigsViewerZoomResetButton,
@@ -16,6 +17,7 @@ export function ViewerControls() {
         nextButton: 'absolute top-1/2 right-[4px] -translate-y-1/2',
         thumbnails: 'absolute bottom-[8px] left-1/2 z-[3] -translate-x-1/2',
         zoomResetButton: 'absolute top-[8px] right-[8px] z-[3]',
+        fullscreenButton: 'absolute bottom-[8px] left-[8px] z-[3]',
       }}
     >
       <div
@@ -29,7 +31,9 @@ export function ViewerControls() {
         <CigsViewerNextButton />
       </div>
       <CigsViewerThumbnails />
+      <CigsViewerFullscreenButton />
       <CigsViewerZoomResetButton />
     </ViewerLayoutContext.Provider>
   );
 }
+

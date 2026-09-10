@@ -16,4 +16,6 @@ export const defaultLabels: ViewerLabels = {
   resetZoom: 'Reset zoom',
   zoomInstructions:
     'Use the mouse wheel to zoom, then drag to pan. Press Escape to reset.',
+  fullscreen: 'View fullscreen',
+  exitFullscreen: 'Exit fullscreen',
 };

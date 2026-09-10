@@ -4,6 +4,7 @@ import { useFrameLoading } from './useFrameLoading.js';
 import { useSequenceDrag } from './useSequenceDrag.js';
 import { useSlideDrag } from './useSlideDrag.js';
 import { useImageZoom } from './useImageZoom.js';
+import { useFullscreen } from './useFullscreen.js';
 import type {
   ViewerClassNames,
   ViewerFrame,
@@ -24,7 +25,7 @@ export interface ViewerControllerProps {
   preloadRadius: number | 'all';
   showThumbnails: boolean;
   enableZoom: boolean;
-  showDebug: boolean;
+  maxZoom: number;
   labels: ViewerLabels;
   classNames: ViewerClassNames | undefined;
   children?: ReactNode;
@@ -42,6 +43,7 @@ export function useViewerController(props: ViewerControllerProps) {
     viewMode,
     pixelsPerFrame,
     enableZoom,
+    maxZoom,
     preloadRadius,
     showThumbnails,
     alternateFrame,
@@ -52,6 +54,8 @@ export function useViewerController(props: ViewerControllerProps) {
   const [canvasElement, setCanvasElement] = useState<HTMLDivElement | null>(
     null
   );
+  const fullscreen = useFullscreen(viewportElement);
+  const effectiveEnableZoom = enableZoom || fullscreen.active;
   const {
     viewport: slideRef,
     motion,
@@ -92,7 +96,8 @@ export function useViewerController(props: ViewerControllerProps) {
     reset,
     handlers: zoomHandlers,
   } = useImageZoom(
-    enableZoom && !!frame,
+    effectiveEnableZoom && !!frame,
+    maxZoom,
     zoomScope,
     motion.active,
     canvasElement
@@ -132,6 +137,8 @@ export function useViewerController(props: ViewerControllerProps) {
   return {
     ...props,
     frame,
+    enableZoom: effectiveEnableZoom,
+    fullscreen,
     slide: { viewport: slideRef, motion, onTransitionEnd },
     zoom: { scale, transform, reset },
     zoomScope,

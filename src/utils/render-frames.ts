@@ -1,6 +1,6 @@
+import { RENDER_QUALITIES } from '../types/viewer.js';
 import type {
   RenderConfiguration,
-  RenderQuality,
   ViewerCamera,
   ViewerFrame,
   ViewerRenderOptions,
@@ -12,15 +12,6 @@ const defaultOmittedKeys = {
   exterior: ['AKZI', 'DHC'],
   interior: ['AKZ'],
 } as const;
-
-const qualities: readonly RenderQuality[] = [
-  'FHD',
-  'WQHD',
-  '4K',
-  '4KHQ',
-  '8K',
-  '8KHQ',
-];
 
 function validateToken(value: string, name: string) {
   if (typeof value !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(value)) {
@@ -124,8 +115,9 @@ export function buildViewerFrames(options: ViewerRenderOptions): {
   const { exteriorCameras, interiorCameras } = resolveCameras(options);
   const base = normalizeBaseUrl(baseUrl);
   if (
-    !qualities.includes(quality) ||
-    (thumbnailQuality !== undefined && !qualities.includes(thumbnailQuality))
+    !RENDER_QUALITIES.includes(quality) ||
+    (thumbnailQuality !== undefined &&
+      !RENDER_QUALITIES.includes(thumbnailQuality))
   ) {
     throw new TypeError('Unsupported render quality.');
   }

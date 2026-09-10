@@ -222,8 +222,8 @@ Host-App kontrollierte Kamera-IDs ebenfalls aktualisieren.
 | `pixelsPerFrame` | `24` | Positive ganzzahlige Drag-Distanz in CSS-Pixeln, nur fuer `dragMode='sequence'` |
 | `preloadRadius` | `'all'` | Gesamte aktive Ansicht in Nachbarpaaren; alternativ 0-4 Nachbarbilder pro Richtung |
 | `showThumbnails` | `false` | Kamera-Thumbnails bei mehreren Kameras der aktiven Ansicht; ohne `thumbnailQuality` werden geladene Hauptbilder wiederverwendet |
-| `enableZoom` | `false` | Mausrad-Zoom 1x-4x mit gezieltem 4K-Nachladen; Ziehen verschiebt den Ausschnitt |
-| `showDebug` | `false` | Debug-Anzeige unter dem Bild: Kamera, tatsaechlich dargestellter Bildpfad, Originalaufloesung und Zoomstufe |
+| `enableZoom` | `false` | Mausrad-Zoom mit gezieltem 4K-Nachladen; Ziehen verschiebt den Ausschnitt |
+| `maxZoom` | `4` | Maximale Zoomstufe als Zahl groesser/gleich 1 |
 | `labels` | Englisch | Teilmenge von `ViewerLabels`, inklusive Lade-, Fehler-, Retry- und Anleitungstexten |
 | `className`, `style` | - | Gestaltung des Containers |
 | `classNames` | - | Typisierte Tailwind-Overrides fuer einzelne UI-Bestandteile, siehe unten |
@@ -278,7 +278,7 @@ Klick- und Tastaturwechsel dauern 600 ms mit sanftem Anlauf und anschliessender
 Beschleunigung. Das Einrasten nach einem echten Swipe bleibt bei 220 ms.
 
 `enableZoom` aktiviert das Mausrad nur ueber der Bildflaeche, nicht ueber den
-Bedienelementen. Gezoomt wird um die Mausposition, zwischen 1x und 4x.
+Bedienelementen. Gezoomt wird um die Mausposition, zwischen 1x und `maxZoom`.
 Ab vergroesserter Darstellung verschiebt Ziehen den Ausschnitt statt Kameras
 weiterzuschalten; Pfeile, Thumbnails und Tastatur bleiben bedienbar.
 Escape oder "Reset zoom" setzen auf 1x zurueck. Kamera-, Ansichts- und
@@ -287,12 +287,12 @@ den Zoom ebenfalls zurueck. Ohne Zoom-Prop bleibt normales Seitenscrollen erhalt
 Strg-/Cmd-Mausrad bleibt immer dem Browser vorbehalten.
 `labels.resetZoom` und `labels.zoomInstructions` sind lokalisierbar.
 
-`showDebug` ist in der Demo aktiviert. Die Anzeige liest die Originalabmessungen
-(`naturalWidth`/`naturalHeight`) des sichtbaren Bildes, nicht die CSS-Groesse.
-Solange ein Ersatzbild oder 4K-Bild noch laedt, zeigt sie weiterhin die Daten
-des dargestellten Fallback-Bildes. Ohne geladenes Bild stehen Pfad und Aufloesung
-auf `-`. Die Texte sind ueber `labels.debug`, `debugCamera`, `debugImage`,
-`debugResolution` und `debugZoom` anpassbar.
+Die Demo rendert die Debug-Anzeige bewusst ausserhalb von `CigsViewer` unter der
+Bildflaeche. Sie liest die Originalabmessungen (`naturalWidth`/`naturalHeight`)
+des sichtbaren Bildes, nicht die CSS-Groesse. Solange ein Ersatzbild oder
+hochaufgeloestes Zoom-Bild noch laedt, zeigt sie weiterhin die Daten des
+dargestellten Fallback-Bildes. Ohne geladenes Bild stehen Pfad und Aufloesung
+auf `-`.
 
 Beim Hineinzoomen wird ausschliesslich fuer den aktuellen Frame dessen
 `PQM-4K`-Bild angefordert, sobald das Basisbild geladen ist. Bis die hoehere
@@ -322,7 +322,6 @@ const classNames = {
   thumbnails: 'gap-3',
   thumbnail: 'rounded-xl aria-pressed:border-sky-500',
   thumbnailImage: 'h-12 w-20 rounded-lg',
-  debug: 'bg-slate-50 text-slate-700',
 } satisfies ViewerClassNames;
 
 <CigsViewer
@@ -336,7 +335,7 @@ const classNames = {
 
 Verfuegbare Schluessel: `root`, `viewport`, `navigation`, `previousButton`,
 `nextButton`, `zoomResetButton`, `thumbnails`, `thumbnail`, `thumbnailImage`,
-`viewSwitchButton` und `debug`.
+`viewSwitchButton`, `fullscreenButton` und `controlsAgenda`.
 `navigation` betrifft nur den Wrapper des Default-Layouts. `thumbnailImage`
 gestaltet sowohl das Vorschaubild als auch seinen Platzhalter, damit eigene
 Breiten und Hoehen beim Laden stabil bleiben.
@@ -392,7 +391,6 @@ import {
   Bei einer Kamera wird deren Thumbnail ausgeblendet; `showThumbnails={false}`
   unterdrueckt die Kamera-Thumbnails. Ein benoetigter Ansichtswechsel bleibt.
 - `CigsViewerViewSwitchButton` kann bei Bedarf separat platziert werden.
-- `showDebug` funktioniert auch im eigenen Layout und ergaenzt die Anzeige darunter.
 
 Die Komponenten muessen innerhalb ihres `CigsViewer` verwendet werden. Auch
 Controls ausserhalb der Bildflaeche funktionieren dort ohne eigene Click-Handler.
@@ -507,7 +505,7 @@ Props und Verhalten bleiben unveraendert.
 Ab **0.4.0** erfolgt das Styling ueber Tailwind CSS 4. Den bisherigen
 Stylesheet-Import entfernen und das Paket wie oben beschrieben per `@source`
 registrieren. Neu sind unter anderem die gemeinsame `cameras`-Auswahl,
-4x-Zoom mit gezieltem 4K-Nachladen, `showDebug` und weiche
+konfigurierbarer Zoom mit gezieltem 4K-Nachladen und weiche
 Konfigurationsuebergaenge.
 
 ## Entwicklung und lokale Installation

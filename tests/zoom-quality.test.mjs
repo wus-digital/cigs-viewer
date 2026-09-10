@@ -77,6 +77,12 @@ async function render(props = {}, strict = false) {
 }
 const baseImage = () => container.querySelector('.civ__track .civ__image');
 const sharpImage = () => container.querySelector('.civ__zoom-quality img');
+const zoomScale = () => {
+  const match = container
+    .querySelector('.civ__zoom-layer')
+    .style.transform.match(/scale\(([^)]+)\)/);
+  return match ? Number(match[1]) : 1;
+};
 const button = (label) =>
   [...container.querySelectorAll('button')].find(
     (item) =>
@@ -132,77 +138,15 @@ async function loadWithSize(image, width, height) {
   });
   await fire(image, 'load');
 }
-const debug = (field) =>
-  container.querySelector(`[data-debug="${field}"]`)?.textContent;
-
-test('debug is opt-in and follows actual FHD and 4K foreground dimensions and zoom', async () => {
-  await render();
-  assert.equal(container.querySelector('.civ__debug'), null);
-  await render({ showDebug: true });
-  assert.equal(debug('camera'), exteriorFrames[0].cameraId);
-  assert.equal(debug('image'), '-');
-  assert.equal(debug('resolution'), '-');
-  assert.equal(debug('zoom'), '1.00x');
+test('maxZoom limits wheel zoom and resets when the limit changes', async () => {
+  await render({ maxZoom: 2 });
   await loadWithSize(baseImage(), 1920, 1080);
-  assert.equal(debug('image'), `http://localhost${exteriorFrames[0].src}`);
-  assert.equal(debug('resolution'), '1920 x 1080 px');
-  await wheel();
-  assert.equal(debug('zoom'), `${Math.exp(0.3).toFixed(2)}x`);
-  assert.equal(debug('image'), `http://localhost${exteriorFrames[0].src}`);
-  await loadWithSize(sharpImage(), 3840, 2160);
-  assert.equal(debug('image'), `http://localhost${exteriorFrames[0].zoomSrc}`);
-  assert.equal(debug('resolution'), '3840 x 2160 px');
-  await resetZoom();
-  assert.equal(debug('image'), `http://localhost${exteriorFrames[0].src}`);
-  assert.equal(debug('resolution'), '1920 x 1080 px');
-  assert.equal(debug('zoom'), '1.00x');
-  await wheel();
-  assert.equal(debug('resolution'), '3840 x 2160 px');
-  await render({ showDebug: false });
-  assert.equal(container.querySelector('.civ__debug'), null);
-});
-
-test('debug reports retained base images during replacement and rejects failed or stale upgrades', async () => {
-  await render({ showDebug: true });
-  await loadWithSize(baseImage(), 1920, 1080);
-  await wheel();
-  await fire(sharpImage(), 'error');
-  assert.equal(debug('resolution'), '1920 x 1080 px');
-  const replacements = exteriorFrames.map((frame) => ({
-    ...frame,
-    src: `/replacement${frame.src}`,
-  }));
-  await render({ showDebug: true, exteriorFrames: replacements });
-  assert.equal(debug('image'), `http://localhost${exteriorFrames[0].src}`);
-  assert.equal(debug('resolution'), '1920 x 1080 px');
-  await loadWithSize(baseImage(), 2560, 1440);
-  assert.equal(debug('image'), `http://localhost${replacements[0].src}`);
-  assert.equal(debug('resolution'), '2560 x 1440 px');
-  await render({
-    showDebug: true,
-    exteriorFrames: replacements,
-    frameIndex: 1,
-  });
-  assert.equal(debug('camera'), exteriorFrames[1].cameraId);
-  assert.equal(debug('image'), '-');
-  assert.equal(debug('resolution'), '-');
-  await render({ showDebug: true, exteriorFrames: [], interiorFrames: [] });
-  assert.equal(debug('camera'), '-');
-  assert.equal(debug('image'), '-');
-});
-
-test('debug can be enabled after a cached image loads and its labels are configurable', async () => {
-  await render();
-  await loadWithSize(baseImage(), 3840, 2160);
-  await render({
-    showDebug: true,
-    labels: { debugResolution: 'Originalaufloesung' },
-  });
-  assert.equal(debug('resolution'), '3840 x 2160 px');
-  assert.match(
-    container.querySelector('.civ__debug').textContent,
-    /Originalaufloesung/
-  );
+  for (let index = 0; index < 12; index += 1) await wheel(-200);
+  assert.equal(zoomScale(), 2);
+  await render({ maxZoom: 3 });
+  assert.equal(zoomScale(), 1);
+  for (let index = 0; index < 12; index += 1) await wheel(-200);
+  assert.equal(zoomScale(), 3);
 });
 
 test('zoom waits for the selected base and requests only its explicit 4K URL', async () => {

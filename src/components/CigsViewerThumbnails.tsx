@@ -30,7 +30,12 @@ export const CigsViewerThumbnails = forwardRef<
     classNames,
     loading,
     selectFrame,
+    slide: { motion },
   } = useViewerContext('CigsViewerThumbnails');
+  const activeIndex =
+    motion.active && motion.targetIndex !== undefined
+      ? motion.targetIndex
+      : frameIndex;
   const showCameraThumbnails = showThumbnails && frames.length > 1;
   const stripRef = useRef<HTMLDivElement>(null);
   const ref = useCallback(
@@ -62,7 +67,7 @@ export const CigsViewerThumbnails = forwardRef<
       strip.scrollLeft =
         selected.offsetLeft + selected.offsetWidth - strip.clientWidth;
     }
-  }, [frameIndex, viewMode, showCameraThumbnails]);
+  }, [activeIndex, viewMode, showCameraThumbnails]);
   if (!showCameraThumbnails && !(alternateFrame && frames.length)) return null;
   return (
     <div
@@ -91,7 +96,7 @@ export const CigsViewerThumbnails = forwardRef<
               key={frameIdentity(frame, index)}
               type='button'
               aria-label={frame.alt ?? `${labels[viewMode]} ${index + 1}`}
-              aria-pressed={frameIndex === index}
+              aria-pressed={activeIndex === index}
               onClick={() => selectFrame(index)}
             >
               <ThumbnailImage

@@ -1,6 +1,7 @@
 import { forwardRef } from 'react';
 import {
   arrowClasses,
+  fullscreenButtonClasses,
   thumbnailButtonClasses,
   zoomResetClasses,
 } from '../constants/tailwind.js';
@@ -74,6 +75,66 @@ export const CigsViewerNextButton = forwardRef<
       action={() => selectFrame(1, true)}
     >
       {props.asChild ? children : (children ?? <Arrow previous={false} />)}
+    </ViewerButton>
+  );
+});
+
+function FullscreenIcon({ active }: { active: boolean }) {
+  return (
+    <svg
+      width='20'
+      height='20'
+      viewBox='0 0 24 24'
+      fill='none'
+      stroke='currentColor'
+      strokeWidth='1.5'
+      strokeLinecap='round'
+      strokeLinejoin='round'
+      aria-hidden='true'
+    >
+      {active ? (
+        <>
+          <path d='M9 4H5a1 1 0 0 0-1 1v4' />
+          <path d='M15 4h4a1 1 0 0 1 1 1v4' />
+          <path d='M9 20H5a1 1 0 0 1-1-1v-4' />
+          <path d='M15 20h4a1 1 0 0 0 1-1v-4' />
+        </>
+      ) : (
+        <>
+          <path d='M4 9V5a1 1 0 0 1 1-1h4' />
+          <path d='M20 9V5a1 1 0 0 0-1-1h-4' />
+          <path d='M4 15v4a1 1 0 0 0 1 1h4' />
+          <path d='M20 15v4a1 1 0 0 1-1 1h-4' />
+        </>
+      )}
+    </svg>
+  );
+}
+
+export const CigsViewerFullscreenButton = forwardRef<
+  HTMLButtonElement,
+  CigsViewerButtonProps
+>(function CigsViewerFullscreenButton({ children, ...props }, ref) {
+  const { fullscreen, labels, classNames } = useViewerContext(
+    'CigsViewerFullscreenButton'
+  );
+  if (!fullscreen.supported) return null;
+  const label = fullscreen.active ? labels.exitFullscreen : labels.fullscreen;
+  return (
+    <ViewerButton
+      {...props}
+      ref={ref}
+      marker='civ__fullscreen'
+      slot='fullscreenButton'
+      defaults={fullscreenButtonClasses}
+      slotOverride={classNames?.fullscreenButton}
+      label={label}
+      unavailable={false}
+      action={fullscreen.toggle}
+    >
+      {props.asChild
+        ? children
+        : (children ?? <FullscreenIcon active={fullscreen.active} />)}
     </ViewerButton>
   );
 });

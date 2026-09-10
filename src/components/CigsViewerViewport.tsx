@@ -6,7 +6,12 @@ import { SlideTrack } from './SlideTrack.js';
 import { frameIdentity } from '../utils/frames.js';
 import { slotClasses } from '../utils/classes.js';
 import { useViewerContext } from './ViewerContext.js';
-import { fill, statusClasses, viewportClasses } from '../constants/tailwind.js';
+import {
+  controlsAgendaClasses,
+  fill,
+  statusClasses,
+  viewportClasses,
+} from '../constants/tailwind.js';
 
 export type CigsViewerViewportProps = HTMLAttributes<HTMLDivElement>;
 
@@ -25,6 +30,7 @@ export const CigsViewerViewport = forwardRef<
     loop,
     dragMode,
     enableZoom,
+    fullscreen,
     labels,
     onImageError,
     frame,
@@ -195,6 +201,17 @@ export const CigsViewerViewport = forwardRef<
           </SlideTrack>
         </div>
       </div>
+      {fullscreen.active && (
+        <p
+          className={slotClasses(
+            'civ__controls-agenda',
+            controlsAgendaClasses,
+            classNames?.controlsAgenda
+          )}
+        >
+          {labels.zoomInstructions}
+        </p>
+      )}
       {children}
     </div>
   );

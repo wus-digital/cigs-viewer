@@ -5,7 +5,6 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { FrameImage } from '../dist/components/FrameImage.js';
 import { ZoomFrameImage } from '../dist/components/ZoomFrameImage.js';
-import { ViewerDebug } from '../dist/components/ViewerDebug.js';
 
 const { act } = React;
 const dom = new JSDOM('<!doctype html><html><body></body></html>', {
@@ -61,41 +60,31 @@ async function render(src, options = {}) {
     frame: { src, cameraId: options.camera ?? 'front' },
   };
   const viewer = React.createElement(
-    React.Fragment,
-    null,
+    'div',
+    { ref: viewport },
     React.createElement(
       'div',
-      { ref: viewport },
-      React.createElement(
-        'div',
-        { className: 'civ__track' },
-        React.createElement(FrameImage, {
-          key: change.frame.cameraId,
-          change,
-          alt: 'Car',
-          labels,
-          fallbackSrc: options.fallbackSrc,
-          enabled: options.enabled ?? true,
-          onSettled: (image, loaded) => settled.push([image, loaded]),
-          onImageError: (...args) => errors.push(args),
-        }),
-        options.sharp
-          ? React.createElement(ZoomFrameImage, {
-              src: options.sharp,
-              change,
-              active: true,
-              labels,
-              onImageError: undefined,
-            })
-          : null
-      )
-    ),
-    React.createElement(ViewerDebug, {
-      viewport,
-      cameraId: change.frame.cameraId,
-      scale: options.sharp ? 2 : 1,
-      labels,
-    })
+      { className: 'civ__track' },
+      React.createElement(FrameImage, {
+        key: change.frame.cameraId,
+        change,
+        alt: 'Car',
+        labels,
+        fallbackSrc: options.fallbackSrc,
+        enabled: options.enabled ?? true,
+        onSettled: (image, loaded) => settled.push([image, loaded]),
+        onImageError: (...args) => errors.push(args),
+      }),
+      options.sharp
+        ? React.createElement(ZoomFrameImage, {
+            src: options.sharp,
+            change,
+            active: true,
+            labels,
+            onImageError: undefined,
+          })
+        : null
+    )
   );
   await act(async () =>
     root.render(
@@ -108,8 +97,25 @@ async function render(src, options = {}) {
 
 const current = () => container.querySelector('.civ__image');
 const retained = () => container.querySelector('.civ__image--retained');
-const debugSource = () =>
-  container.querySelector('[data-debug="image"]').textContent;
+const foreground = () =>
+  [...container.querySelectorAll('.civ__track .civ__image')]
+    .sort(
+      (left, right) =>
+        Number(right.dataset.civLayer ?? 0) -
+        Number(left.dataset.civLayer ?? 0)
+    )
+    .find(
+      (element) =>
+        element.naturalWidth > 0 &&
+        !element.closest('[hidden]') &&
+        window.getComputedStyle(element).visibility === 'visible' &&
+        window.getComputedStyle(element).opacity !== '0'
+    );
+const foregroundSource = () => foreground()?.src;
+const foregroundResolution = () => {
+  const image = foreground();
+  return image ? `${image.naturalWidth} x ${image.naturalHeight} px` : '-';
+};
 async function fire(element, type, properties = {}) {
   const event = new dom.window.Event(type, { bubbles: true });
   Object.assign(event, properties);
@@ -149,7 +155,7 @@ test('replacement fades over the same loaded pixels, keeps current first, and se
   assert.equal(next.style.visibility, 'hidden');
   assert.equal(old.style.opacity, '1');
   assert.equal(old.style.visibility, 'visible');
-  assert.equal(debugSource(), 'http://localhost/old.webp');
+  assert.equal(foregroundSource(), 'http://localhost/old.webp');
   assert.ok(container.querySelector('.civ__loading-veil'));
   await load(next);
   assert.equal(retained(), old, 'old pixels persist until the transition finishes');
@@ -174,7 +180,7 @@ test('replacement fades over the same loaded pixels, keeps current first, and se
   assert.equal(old.isConnected, false);
   assert.equal(next.isConnected, true);
   assert.equal(next.style.opacity, '1');
-  assert.equal(debugSource(), 'http://localhost/new.webp');
+  assert.equal(foregroundSource(), 'http://localhost/new.webp');
   assert.equal(timers.size, 0);
 });
 
@@ -272,7 +278,7 @@ test('rapid configuration changes cancel stale loads, fade events, and fallback 
   await finish(fourth);
   assert.equal(retained(), null);
   assert.equal(current(), fourth);
-  assert.equal(debugSource(), 'http://localhost/fourth.webp');
+  assert.equal(foregroundSource(), 'http://localhost/fourth.webp');
 });
 
 test('returning to an earlier source never leaves two copies or clears its current image', async () => {
@@ -331,22 +337,19 @@ test('ordinary camera changes do not crossfade and cancel outgoing transitions',
   assert.equal(timers.size, 0);
 });
 
-test('4K foreground stays above both base layers and debug identifies the real foreground', async () => {
+test('4K foreground stays above both base layers as the real foreground', async () => {
   await startFade();
   await render('/new.webp', { sharp: '/sharp.webp' });
   const sharp = container.querySelector('.civ__zoom-quality img');
   assert.ok(sharp.parentElement.classList.contains('z-[3]'));
   assert.ok(current().classList.contains('z-[1]'));
   assert.equal(sharp.style.visibility, 'hidden');
-  assert.equal(debugSource(), 'http://localhost/new.webp');
+  assert.equal(foregroundSource(), 'http://localhost/new.webp');
   await load(sharp, 3840);
-  assert.equal(debugSource(), 'http://localhost/sharp.webp');
+  assert.equal(foregroundSource(), 'http://localhost/sharp.webp');
   await finish();
-  assert.equal(debugSource(), 'http://localhost/sharp.webp');
-  assert.equal(
-    container.querySelector('[data-debug="resolution"]').textContent,
-    '3840 x 2160 px'
-  );
+  assert.equal(foregroundSource(), 'http://localhost/sharp.webp');
+  assert.equal(foregroundResolution(), '3840 x 2160 px');
 });
 
 test('fallback sources crossfade on first load, including disabled queue entries', async () => {
@@ -355,7 +358,7 @@ test('fallback sources crossfade on first load, including disabled queue entries
   await load(retained());
   await fire(current(), 'load');
   assert.equal(settled.length, 0);
-  assert.equal(debugSource(), 'http://localhost/old.webp');
+  assert.equal(foregroundSource(), 'http://localhost/old.webp');
   await render('/new.webp', { fallbackSrc: '/old.webp' });
   await load();
   assert.ok(retained());

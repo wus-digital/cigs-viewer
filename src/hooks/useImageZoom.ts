@@ -19,6 +19,7 @@ function boundPan(value: number, size: number, scale: number) {
 
 export function useImageZoom(
   enabled: boolean,
+  maxZoom: number,
   scope: string,
   blocked: boolean,
   canvasElement?: HTMLDivElement | null
@@ -28,6 +29,7 @@ export function useImageZoom(
   const [zoom, setZoom] = useState({
     scope,
     enabled,
+    maxZoom,
     canvasElement,
     scale: 1,
     x: 0,
@@ -36,9 +38,10 @@ export function useImageZoom(
   if (
     zoom.scope !== scope ||
     zoom.enabled !== enabled ||
+    zoom.maxZoom !== maxZoom ||
     zoom.canvasElement !== canvasElement
   ) {
-    setZoom({ scope, enabled, canvasElement, scale: 1, x: 0, y: 0 });
+    setZoom({ scope, enabled, maxZoom, canvasElement, scale: 1, x: 0, y: 0 });
   }
 
   const release = useCallback(() => {
@@ -51,8 +54,8 @@ export function useImageZoom(
 
   const reset = useCallback(() => {
     release();
-    setZoom({ scope, enabled, canvasElement, scale: 1, x: 0, y: 0 });
-  }, [scope, enabled, release, canvasElement]);
+    setZoom({ scope, enabled, maxZoom, canvasElement, scale: 1, x: 0, y: 0 });
+  }, [scope, enabled, maxZoom, release, canvasElement]);
 
   useEffect(() => {
     const element = viewport.current;
@@ -81,7 +84,7 @@ export function useImageZoom(
       setZoom((current) => {
         const scale = Math.max(
           1,
-          Math.min(4, current.scale * Math.exp(-delta * 0.002))
+          Math.min(maxZoom, current.scale * Math.exp(-delta * 0.002))
         );
         const ratio = scale / current.scale;
         return {
@@ -94,7 +97,7 @@ export function useImageZoom(
     };
     element.addEventListener('wheel', wheel, { passive: false });
     return () => element.removeEventListener('wheel', wheel);
-  }, [enabled, scope, blocked, canvasElement]);
+  }, [enabled, maxZoom, scope, blocked, canvasElement]);
 
   useEffect(() => {
     const element = viewport.current;

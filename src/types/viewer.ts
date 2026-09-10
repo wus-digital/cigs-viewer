@@ -13,7 +13,16 @@ export type RenderConfiguration = Readonly<
   Record<string, string | number | null | undefined>
 >;
 
-export type RenderQuality = 'FHD' | 'WQHD' | '4K' | '4KHQ' | '8K' | '8KHQ';
+export const RENDER_QUALITIES = [
+  'FHD',
+  'WQHD',
+  '4K',
+  '4KHQ',
+  '8K',
+  '8KHQ',
+] as const;
+
+export type RenderQuality = (typeof RENDER_QUALITIES)[number];
 
 export interface ViewerCamera {
   /** Exact filename camera token, e.g. C1. Array order defines swipe order. */
@@ -67,11 +76,8 @@ export interface ViewerLabels {
   instructions: string;
   resetZoom: string;
   zoomInstructions: string;
-  debug?: string;
-  debugCamera?: string;
-  debugImage?: string;
-  debugResolution?: string;
-  debugZoom?: string;
+  fullscreen: string;
+  exitFullscreen: string;
 }
 
 export interface ViewerClassNames {
@@ -87,7 +93,8 @@ export interface ViewerClassNames {
   /** Applied to both the preview image and its placeholder wrapper for stable sizing. */
   thumbnailImage?: string;
   viewSwitchButton?: string;
-  debug?: string;
+  fullscreenButton?: string;
+  controlsAgenda?: string;
 }
 
 interface ViewerControlsProps {
@@ -109,10 +116,10 @@ interface ViewerControlsProps {
   /** Paired preload distance per direction: all frames by default, or 0-4. */
   preloadRadius?: number | 'all';
   showThumbnails?: boolean;
-  /** Enable wheel zoom (1x-4x) and drag-to-pan. Disabled by default. */
+  /** Enable wheel zoom and drag-to-pan. Disabled by default. */
   enableZoom?: boolean;
-  /** Show actual displayed image metadata below the image. Disabled by default. */
-  showDebug?: boolean;
+  /** Maximum wheel zoom scale. Defaults to 4. */
+  maxZoom?: number;
   labels?: Partial<ViewerLabels>;
   /** Slot utilities override the default theme using tailwind-merge. */
   classNames?: ViewerClassNames;
