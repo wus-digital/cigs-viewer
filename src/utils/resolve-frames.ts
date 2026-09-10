@@ -9,7 +9,7 @@ import type { ViewerFramesConfig } from './render-frames.js';
 type CamerasAndConfiguration = Pick<ViewerFramesConfig, 'cameras' | 'configuration'>;
 
 /** `POST /generate`'s camera entries are the camera ID without its leading `C` (the service re-adds it itself). */
-function cameraToken(cameraId: string): string {
+export function cameraToken(cameraId: string): string {
   return cameraId.replace(/^C/i, '');
 }
 
@@ -72,6 +72,7 @@ export function createPendingFrames(
   return cameras.map((camera) => ({
     cameraId: camera.id,
     src: PENDING_FRAME_SRC,
+    generating: true,
     ...(camera.label === undefined ? {} : { alt: camera.label }),
   }));
 }

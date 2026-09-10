@@ -81,8 +81,8 @@ projektspezifischen Umgebungsvariablen und verwendet keinen fest eingebauten Hos
 Der feste System-Katalog enthaelt diese maximal verfuegbaren Kameras, in
 dieser Standard-Reihenfolge:
 
-`C1`, `C2`, `C3`, `C4`, `C5`, `C8`, `C9`, `C10`, `C6`, `C7`, `C11`, `C12`,
-`C13`, `C14`
+`C1`, `C2`, `C3`, `C4`, `C5`, `C6`, `C7`, `C8`, `C9`, `C10`, `C11`, `C12`,
+`C13`, `C14`, `C15`
 
 Der Viewer unterscheidet nicht zwischen "Exterieur" und "Interieur" - es gibt
 nur eine einzige Kameraliste, in der vom Host konfigurierten (bzw. der
@@ -235,6 +235,9 @@ Host-App kontrollierte Kamera-IDs ebenfalls aktualisieren.
 | `pixelsPerFrame` | `24` | Positive ganzzahlige Drag-Distanz in CSS-Pixeln, nur fuer `dragMode='sequence'` |
 | `preloadRadius` | `'all'` | Gesamte Kameraliste in Nachbarpaaren; alternativ 0-4 Nachbarbilder pro Richtung |
 | `showThumbnails` | `false` | Kamera-Thumbnails bei mehreren Kameras; ohne `thumbnailQuality` werden geladene Hauptbilder wiederverwendet |
+| `allowFullscreen` | `true` | Blendet den Fullscreen-Button im Default-Layout aus (`false`), wenn kein Vollbild gewuenscht ist |
+| `actions` | - | `readonly ViewerAction[]` fuer eigene Buttons im Default-Layout, in derselben Zeile wie Thumbnails und Fullscreen-Button; wird bei eigenem `children`-Layout ignoriert |
+| `fullscreenIcon` | - | Eigenes Icon fuer den Fullscreen-Button, damit er optisch zu eigenen `actions` passt |
 | `enableZoom` | `false` | Mausrad-Zoom mit gezieltem 4K-Nachladen; Ziehen verschiebt den Ausschnitt |
 | `maxZoom` | `4` | Maximale Zoomstufe als Zahl groesser/gleich 1 |
 | `labels` | Englisch | Teilmenge von `ViewerLabels`, inklusive Lade-, Fehler-, Retry- und Anleitungstexten |
@@ -341,11 +344,16 @@ const classNames = {
 ```
 
 Verfuegbare Schluessel: `root`, `viewport`, `navigation`, `previousButton`,
-`nextButton`, `zoomResetButton`, `thumbnails`, `thumbnail`, `thumbnailImage`,
-`fullscreenButton` und `controlsAgenda`.
-`navigation` betrifft nur den Wrapper des Default-Layouts. `thumbnailImage`
-gestaltet sowohl das Vorschaubild als auch seinen Platzhalter, damit eigene
-Breiten und Hoehen beim Laden stabil bleiben.
+`nextButton`, `zoomResetButton`, `toolbar`, `thumbnails`, `thumbnail`,
+`thumbnailImage`, `fullscreenButton`, `actionButton` und `controlsAgenda`.
+`navigation` betrifft nur den Wrapper des Default-Layouts. `toolbar` ist der
+gemeinsame Zeilen-Wrapper des Default-Layouts, der Thumbnails, `actions`
+und den Fullscreen-Button randlos in einer Linie am unteren Bildrand anordnet.
+`actionButton` gestaltet einheitlich alle ueber `actions` uebergebenen Buttons;
+einzelne Actions koennen nicht individuell abweichend gestylt werden, damit sie
+garantiert gleich aussehen. `thumbnailImage` gestaltet sowohl das Vorschaubild
+als auch seinen Platzhalter, damit eigene Breiten und Hoehen beim Laden stabil
+bleiben.
 
 Die Reihenfolge lautet **Default-Klassen -> `classNames` -> direktes `className`**.
 Bei `asChild` werden explizite Klassen am Child zuletzt zusammengefuehrt.
@@ -355,6 +363,53 @@ gezielt ueberschreiben, beispielsweise `aria-pressed:border-sky-500` oder
 Hover-Zustand. Beliebige CSS-Properties wie `[padding:1rem]` werden nicht mit
 allen entsprechenden Utilities zusammengefuehrt; lieber konsistente Utilities
 wie `p-4` verwenden.
+
+### Eigene Toolbar-Buttons und Fullscreen steuern
+
+`actions` ergaenzt das Default-Layout um eigene Buttons, die in derselben
+Zeile wie die Thumbnails und der Fullscreen-Button erscheinen. Jede Action ist
+ein typisiertes `ViewerAction`-Objekt (`icon`, `label`, `onClick`, optional
+`key` und `disabled`) statt freiem `ReactNode` -- so werden alle Buttons
+automatisch einheitlich gerendert (gleiche Groesse, randlos, gleicher
+Hover-Zustand wie der Fullscreen-Button) und muessen nicht einzeln gestylt
+werden. `allowFullscreen={false}` blendet den Fullscreen-Button aus, wenn ein
+Projekt kein Vollbild anbieten soll; `fullscreenIcon` ersetzt dessen Icon,
+damit es optisch zu eigenen `actions` passt:
+
+```tsx
+import { CigsViewer, type ViewerAction } from 'cigs-viewer';
+
+const actions: ViewerAction[] = [
+  {
+    key: 'download',
+    label: 'Bild herunterladen',
+    icon: <DownloadIcon />,
+    onClick: () => downloadCurrentImage(),
+  },
+  {
+    key: 'share',
+    label: 'Konfiguration teilen',
+    icon: <ShareIcon />,
+    onClick: () => shareConfiguration(),
+    disabled: false,
+  },
+];
+
+<CigsViewer
+  baseUrl="https://cigs.elferplatz.com"
+  configuration={{ B: '01', M: '01', P: '070707', PMV: '100' }}
+  cameras={['C1', 'C2', 'C6']}
+  showThumbnails
+  fullscreenIcon={<ExpandIcon />}
+  actions={actions}
+/>
+```
+
+`actions` wird nur im Default-Layout gerendert und bei eigenem
+`children`-Layout ignoriert, da dort bereits volle Kontrolle ueber die
+Anordnung besteht. In einem eigenen `children`-Layout laesst sich dieselbe
+einheitliche Optik ueber die exportierte `CigsViewerActionButton`-Komponente
+erreichen, z. B. `actions.map((action) => <CigsViewerActionButton key={action.key} action={action} />)`.
 
 ### Eigenes Layout mit Children
 
@@ -397,6 +452,12 @@ import {
 - `CigsViewerThumbnails` enthaelt die Kameraauswahl: Bei nur einer Kamera wird
   ihr Thumbnail ausgeblendet; `showThumbnails={false}` unterdrueckt die
   Kamera-Thumbnails.
+- `CigsViewerFullscreenButton` (nicht im Beispiel oben verwendet) respektiert
+  ebenfalls `allowFullscreen={false}` und rendert dann `null`, auch in einem
+  eigenen `children`-Layout; `fullscreenIcon` ersetzt auch hier das Icon.
+- `CigsViewerActionButton` (nicht im Beispiel oben verwendet) rendert ein
+  einzelnes `ViewerAction`-Objekt aus `actions` mit derselben einheitlichen
+  Optik wie im Default-Layout, z. B. `<CigsViewerActionButton action={action} />`.
 
 Die Komponenten muessen innerhalb ihres `CigsViewer` verwendet werden. Auch
 Controls ausserhalb der Bildflaeche funktionieren dort ohne eigene Click-Handler.

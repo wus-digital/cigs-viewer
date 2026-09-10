@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
   useSyncExternalStore,
@@ -58,7 +59,16 @@ export function useFrameLoading(
     queue.getServerSnapshot
   );
 
-  useEffect(() => {
+  // `useLayoutEffect` (not `useEffect`) is required here: `plan.key` can
+  // change (e.g. a frame's src/thumbnailSrc resolving) more often than the
+  // *current* frame actually changes. `enabled` below is derived from
+  // `snapshot.key === plan.key`, so a plan change makes it briefly false
+  // until this effect reconciles the queue with the new plan. A passive
+  // `useEffect` runs after the browser has already painted, so that
+  // momentary "false" would flash on screen (image hidden -> dark
+  // background shows through). A layout effect runs before paint, so the
+  // reconciliation - and any resulting re-render - completes invisibly.
+  useLayoutEffect(() => {
     queue.start(plan);
   }, [queue, plan]);
   useEffect(() => () => queue.stop(), [queue]);

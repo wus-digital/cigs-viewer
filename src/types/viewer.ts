@@ -47,6 +47,11 @@ export interface ViewerFrame {
   thumbnailSrc?: string;
   /** On-demand high-resolution source for this frame; never a thumbnail or neighbor preload. */
   zoomSrc?: string;
+  /**
+   * True while a new generated image URL is being requested for this frame.
+   * During this phase `src` may still point at the last successfully loaded image.
+   */
+  generating?: boolean;
 }
 
 export interface ViewerFrameChange {
@@ -78,12 +83,32 @@ export interface ViewerClassNames {
   previousButton?: string;
   nextButton?: string;
   zoomResetButton?: string;
+  /**
+   * The default layout's toolbar row housing the thumbnails, `actions` and
+   * the fullscreen button together; custom layouts own their wrappers.
+   */
+  toolbar?: string;
   thumbnails?: string;
   thumbnail?: string;
   /** Applied to both the preview image and its placeholder wrapper for stable sizing. */
   thumbnailImage?: string;
   fullscreenButton?: string;
+  /** Applied to every `actions` button, so they all share one consistent look. */
+  actionButton?: string;
   controlsAgenda?: string;
+}
+
+export interface ViewerAction {
+  /** Stable key; required when passing more than one action. */
+  key?: string;
+  /** Icon rendered inside the action button, e.g. an inline SVG. */
+  icon: ReactNode;
+  /** Accessible label, used for `aria-label` and as the visible tooltip. */
+  label: string;
+  /** Invoked when the action button is activated. */
+  onClick: () => void;
+  /** Disables the action button when true. */
+  disabled?: boolean;
 }
 
 interface ViewerControlsProps {
@@ -102,6 +127,28 @@ interface ViewerControlsProps {
   /** Paired preload distance per direction: all frames by default, or 0-4. */
   preloadRadius?: number | 'all';
   showThumbnails?: boolean;
+  /**
+   * Enables the native fullscreen toggle. Defaults to `true`. When `false`,
+   * the default layout hides the fullscreen button entirely and
+   * `CigsViewerFullscreenButton` renders nothing in a custom layout either;
+   * fullscreen can then never implicitly enable zoom (see `enableZoom`).
+   */
+  allowFullscreen?: boolean;
+  /**
+   * Custom icon for the fullscreen toggle button, so it visually matches
+   * custom `actions` icons. Defaults to the built-in expand/exit icons.
+   * Ignored when `allowFullscreen` is `false`.
+   */
+  fullscreenIcon?: ReactNode;
+  /**
+   * Extra custom buttons for the default layout - e.g. a download or share
+   * button - each rendered as a `{ icon, label, onClick }` entry so every
+   * action button automatically shares the exact same look as the
+   * fullscreen button. Placed in the same row as the thumbnails and the
+   * fullscreen button, after both. Ignored when `children` is provided;
+   * compose a custom layout with `CigsViewerActionButton` instead.
+   */
+  actions?: readonly ViewerAction[];
   /** Enable wheel zoom and drag-to-pan. Disabled by default. */
   enableZoom?: boolean;
   /** Maximum wheel zoom scale. Defaults to 4. */
@@ -120,4 +167,11 @@ export interface CigsViewerProps
 
 export interface ImageFrameViewerProps extends ViewerControlsProps {
   frames: readonly ViewerFrame[];
+  /**
+   * Called when the viewer needs `zoomSrc` for the currently shown frame -
+   * i.e. once the user actually starts wheel-zooming into it and it isn't
+   * resolved yet. Internal to `CigsViewer`, which uses it to fetch the
+   * zoom-quality image on demand instead of upfront for every camera.
+   */
+  onZoomRequest?: (change: ViewerFrameChange) => void;
 }

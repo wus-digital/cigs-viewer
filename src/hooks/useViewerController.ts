@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useFrameLoading } from './useFrameLoading.js';
 import { useSequenceDrag } from './useSequenceDrag.js';
@@ -6,6 +6,7 @@ import { useSlideDrag } from './useSlideDrag.js';
 import { useImageZoom } from './useImageZoom.js';
 import { useFullscreen } from './useFullscreen.js';
 import type {
+  ViewerAction,
   ViewerClassNames,
   ViewerFrame,
   ViewerFrameChange,
@@ -20,6 +21,9 @@ export interface ViewerControllerProps {
   pixelsPerFrame: number;
   preloadRadius: number | 'all';
   showThumbnails: boolean;
+  allowFullscreen: boolean;
+  fullscreenIcon?: ReactNode | undefined;
+  actions?: readonly ViewerAction[] | undefined;
   enableZoom: boolean;
   maxZoom: number;
   labels: ViewerLabels;
@@ -27,6 +31,7 @@ export interface ViewerControllerProps {
   children?: ReactNode;
   onSelect: (index: number) => void;
   onImageError: ((error: Error, change: ViewerFrameChange) => void) | undefined;
+  onZoomRequest?: ((change: ViewerFrameChange) => void) | undefined;
 }
 
 export function useViewerController(props: ViewerControllerProps) {
@@ -38,6 +43,7 @@ export function useViewerController(props: ViewerControllerProps) {
     dragMode,
     pixelsPerFrame,
     enableZoom,
+    allowFullscreen,
     maxZoom,
     preloadRadius,
     showThumbnails,
@@ -49,7 +55,10 @@ export function useViewerController(props: ViewerControllerProps) {
     null
   );
   const fullscreen = useFullscreen(viewportElement);
-  const effectiveEnableZoom = enableZoom || fullscreen.active;
+  // Fullscreen only implicitly enables zoom while it's actually allowed -
+  // otherwise a still-active native fullscreen session from before
+  // `allowFullscreen` was toggled off would keep zoom force-enabled.
+  const effectiveEnableZoom = enableZoom || (allowFullscreen && fullscreen.active);
   const {
     viewport: slideRef,
     motion,
@@ -74,6 +83,11 @@ export function useViewerController(props: ViewerControllerProps) {
     viewportElement
   );
   const frame = frames[frameIndex];
+  // Resets pan/scale only on real navigation (camera/frame change), never
+  // when `zoomSrc` resolves for the frame already being viewed - otherwise
+  // an in-progress zoom snaps back to 1x the moment the on-demand
+  // zoom-quality image arrives, which also restarts its own image request.
+  const panScope = JSON.stringify([dragMode, frameIndex, frame?.cameraId, frame?.src]);
   const zoomScope = JSON.stringify([
     dragMode,
     frameIndex,
@@ -90,10 +104,40 @@ export function useViewerController(props: ViewerControllerProps) {
   } = useImageZoom(
     effectiveEnableZoom && !!frame,
     maxZoom,
-    zoomScope,
+    panScope,
     motion.active,
     canvasElement
   );
+  const loading = useFrameLoading(
+    frames,
+    frameIndex,
+    preloadRadius,
+    loop,
+    showThumbnails,
+    dragMode
+  );
+  const { onZoomRequest } = props;
+  useEffect(() => {
+    // Only request the zoom-quality image once the user has actually
+    // zoomed in on it and its base image has finished loading - never
+    // upfront, and never for a frame that's still showing a placeholder.
+    if (
+      !effectiveEnableZoom ||
+      !frame ||
+      scale <= 1 ||
+      frame.zoomSrc ||
+      !loading.loadedSources.has(frame.src)
+    )
+      return;
+    onZoomRequest?.({ frameIndex, frame });
+  }, [
+    effectiveEnableZoom,
+    scale,
+    frame,
+    frameIndex,
+    loading.loadedSources,
+    onZoomRequest,
+  ]);
   const registerViewport = useCallback(
     (element: HTMLDivElement | null) => {
       if (element && slideRef.current && slideRef.current !== element) {
@@ -112,14 +156,6 @@ export function useViewerController(props: ViewerControllerProps) {
       setCanvasElement(element);
     },
     [zoomRef]
-  );
-  const loading = useFrameLoading(
-    frames,
-    frameIndex,
-    preloadRadius,
-    loop,
-    showThumbnails,
-    dragMode
   );
   function selectFrame(index: number, relative = false) {
     reset();

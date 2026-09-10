@@ -17,12 +17,13 @@ function toError(error: unknown): Error {
  * rest of the catalog.
  *
  * A change to `cameras`/`configuration`/the qualities re-resolves every
- * camera, but a camera whose new image isn't back yet keeps showing its
- * last successfully resolved image (matched by `cameraId`) instead of
- * flashing to the pending placeholder - `FrameImage`'s own crossfade then
- * takes over once the real new URL arrives, exactly like a normal src
- * change. Only a camera that has never resolved before (first mount, or
- * newly added to the selection) shows the placeholder.
+ * camera, but a camera whose new image isn't back yet keeps showing its last
+ * successfully resolved image (matched by `cameraId`) and is marked as
+ * `generating`, so the viewer can show immediate feedback while the
+ * `POST /generate` request is still in flight. `FrameImage`'s own crossfade
+ * then takes over once the real new URL arrives, exactly like a normal src
+ * change. Only a camera that has never resolved before (first mount, or newly
+ * added to the selection) shows the placeholder.
  */
 export function useProgressiveViewFrames(
   baseUrl: string,
@@ -53,7 +54,8 @@ export function useProgressiveViewFrames(
             lastGoodByCameraId.current.set(frame.cameraId, frame);
             return frame;
           }
-          return lastGoodByCameraId.current.get(frame.cameraId) ?? frame;
+          const lastGood = lastGoodByCameraId.current.get(frame.cameraId);
+          return lastGood ? { ...lastGood, generating: true } : frame;
         });
         setFrames(merged);
       }

@@ -9,7 +9,6 @@ interface Gesture {
   width: number;
   horizontal: boolean;
   frameIndex: number;
-  lastX: number;
   direction: -1 | 1;
 }
 
@@ -304,7 +303,6 @@ export function useSlideDrag(
           width,
           horizontal: false,
           frameIndex: startFrame,
-          lastX: event.clientX,
           direction: 1,
         };
         event.currentTarget.setPointerCapture(event.pointerId);
@@ -320,10 +318,10 @@ export function useSlideDrag(
         }
         if (Math.abs(dx) < 2 && !current.horizontal) return;
         current.horizontal = true;
-        const step = event.clientX - current.lastX;
-        if (Math.abs(step) >= 2) current.direction = step < 0 ? 1 : -1;
-        current.lastX = event.clientX;
         const offset = offsetAt(event.clientX, current);
+        // Only flip the revealed neighbor once the drag actually crosses the
+        // center (offset changes sign), not on every small step reversal.
+        if (offset !== 0) current.direction = offset < 0 ? 1 : -1;
         setMotion((previous) => ({
           offset,
           active: offset !== 0 || previous.active,

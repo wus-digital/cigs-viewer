@@ -14,6 +14,7 @@ interface Props {
   onImageError: ((error: Error, change: ViewerFrameChange) => void) | undefined;
   preview?: boolean;
   enabled?: boolean;
+  generating?: boolean | undefined;
   fallbackSrc?: string | undefined;
   onSettled?: (image: HTMLImageElement, loaded: boolean) => void;
   onRetry?: () => void;
@@ -40,6 +41,7 @@ export function FrameImage({
   onImageError,
   preview = false,
   enabled = true,
+  generating = false,
   fallbackSrc,
   onSettled,
   onRetry,
@@ -84,6 +86,144 @@ export function FrameImage({
     );
   }, []);
 
+  // The dark loading veil is fully decoupled from the image cross-fade: it
+  // has its own appear -> shown -> hide lifecycle so it always fades in and
+  // out smoothly over its own timeline, never popping in/out abruptly (e.g.
+  // even when the underlying image happens to be identical to the retained
+  // one and needs no cross-fade of its own).
+  const hasRetained = Boolean(retained);
+  const [cover, setCover] = useState<{
+    generation: number;
+    phase: 'idle' | 'entering' | 'appearing' | 'shown' | 'hiding';
+  }>({ generation: request.generation, phase: 'idle' });
+  if (cover.generation !== request.generation) {
+    setCover({
+      generation: request.generation,
+      phase: cover.phase === 'idle' ? 'idle' : 'shown',
+    });
+  }
+  useEffect(() => {
+    const needsCover =
+      generating || (request.status === 'loading' && hasRetained);
+    if (!needsCover) return;
+    const generation = request.generation;
+    const timeout = window.setTimeout(() => {
+      setCover((current) =>
+        current.generation === generation &&
+        (current.phase === 'idle' || current.phase === 'hiding')
+          ? { generation, phase: 'entering' }
+          : current
+      );
+    }, generating ? 0 : 100);
+    return () => window.clearTimeout(timeout);
+  }, [request.status, request.generation, hasRetained, generating]);
+  // The veil is mounted at opacity 0 in the 'entering' phase first, then
+  // flipped to opacity 1 on the next animation frame. Toggling both in the
+  // same commit as the initial mount would give the browser nothing to
+  // transition from, so the fade-in would snap instantly instead of
+  // animating.
+  useEffect(() => {
+    if (cover.phase !== 'entering') return;
+    const generation = cover.generation;
+    const raf = requestAnimationFrame(() => {
+      setCover((current) =>
+        current.generation === generation && current.phase === 'entering'
+          ? { generation, phase: 'appearing' }
+          : current
+      );
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [cover.phase, cover.generation]);
+  useEffect(() => {
+    if (cover.phase !== 'appearing') return;
+    const generation = cover.generation;
+    const timeout = window.setTimeout(() => {
+      setCover((current) =>
+        current.generation === generation && current.phase === 'appearing'
+          ? { generation, phase: 'shown' }
+          : current
+      );
+    }, 200);
+    return () => window.clearTimeout(timeout);
+  }, [cover.phase, cover.generation]);
+  useEffect(() => {
+    if (cover.phase !== 'hiding') return;
+    const generation = cover.generation;
+    const timeout = window.setTimeout(() => {
+      setCover((current) =>
+        current.generation === generation && current.phase === 'hiding'
+          ? { generation, phase: 'idle' }
+          : current
+      );
+    }, 200);
+    return () => window.clearTimeout(timeout);
+  }, [cover.phase, cover.generation]);
+  useEffect(() => {
+    if (
+      generating ||
+      request.status === 'loading' ||
+      cover.phase === 'idle' ||
+      cover.phase === 'hiding'
+    )
+      return;
+    const generation = cover.generation;
+    const timeout = window.setTimeout(() => {
+      setCover((current) => {
+        if (current.generation !== generation) return current;
+        return current.phase === 'entering'
+          ? { generation, phase: 'idle' }
+          : { generation, phase: 'hiding' };
+      });
+    }, 0);
+    return () => window.clearTimeout(timeout);
+  }, [generating, request.status, cover.phase, cover.generation]);
+  // 'entering' never became visible (still opacity 0), so a load that
+  // resolves that quickly can reveal immediately, same as 'idle'/'shown'.
+  const veilSettled =
+    cover.phase === 'idle' ||
+    cover.phase === 'entering' ||
+    cover.phase === 'shown';
+  const veilMounted = request.status === 'error' || cover.phase !== 'idle';
+  const veilOpaque =
+    request.status === 'error' ||
+    cover.phase === 'appearing' ||
+    cover.phase === 'shown';
+
+  const [dataReady, setDataReady] = useState<{
+    generation: number;
+    element: HTMLImageElement;
+  } | null>(null);
+  // Reveal the newly loaded image only once the veil (if it was shown at
+  // all) has completed its fade-in. Loads that resolve before the veil ever
+  // becomes visible (cache hits), or that have nothing to veil in the first
+  // place (no retained image), are revealed immediately.
+  if (
+    request.status === 'loading' &&
+    dataReady &&
+    dataReady.generation === request.generation &&
+    veilSettled
+  ) {
+    const fadingFrom =
+      retained &&
+      retained.src !== request.src &&
+      !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+        ? retained
+        : null;
+    setRequest({ ...request, status: 'loaded', fadingFrom });
+    setLastGood({
+      src: request.src,
+      attempt: request.attempt,
+      generation: request.generation,
+    });
+    if (cover.phase === 'shown') {
+      setCover({ generation: request.generation, phase: 'hiding' });
+    } else if (cover.phase === 'entering') {
+      // Never became visible; cancel the pending fade-in instead of letting
+      // it flash in after the image has already been revealed.
+      setCover({ generation: request.generation, phase: 'idle' });
+    }
+  }
+
   const handleLoad = useCallback(
     (element: HTMLImageElement) => {
       if (
@@ -93,34 +233,10 @@ export function FrameImage({
       )
         return;
       settled.current = request.generation;
-      const fadingFrom =
-        retained &&
-        retained.src !== request.src &&
-        !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-          ? retained
-          : null;
-      // Establish opacity zero even for cached images before revealing the new layer.
-      if (fadingFrom) element.getBoundingClientRect();
-      setRequest((current) =>
-        current.generation === request.generation
-          ? { ...current, status: 'loaded', fadingFrom }
-          : current
-      );
-      setLastGood({
-        src: request.src,
-        attempt: request.attempt,
-        generation: request.generation,
-      });
       onSettled?.(element, true);
+      setDataReady({ generation: request.generation, element });
     },
-    [
-      enabled,
-      request.generation,
-      request.src,
-      request.attempt,
-      retained,
-      onSettled,
-    ]
+    [enabled, request.generation, onSettled]
   );
 
   const handleError = useCallback(
@@ -162,7 +278,7 @@ export function FrameImage({
       if (preference?.matches) complete();
     };
     preference?.addEventListener?.('change', onPreferenceChange);
-    const timeout = window.setTimeout(complete, 450);
+    const timeout = window.setTimeout(complete, 260);
     return () => {
       window.clearTimeout(timeout);
       preference?.removeEventListener?.('change', onPreferenceChange);
@@ -188,7 +304,7 @@ export function FrameImage({
             layer.current
               ? `${imageClasses} relative z-[1] ${
                   request.fadingFrom
-                    ? 'transition-opacity duration-[400ms] ease-in-out motion-reduce:transition-none'
+                    ? 'transition-opacity duration-[200ms] ease-in-out motion-reduce:transition-none'
                     : ''
                 }`
               : `${imageClasses} civ__image--retained absolute inset-0 z-0`
@@ -232,12 +348,17 @@ export function FrameImage({
           }}
         />
       ))}
-      {retained && request.status !== 'loaded' && (
+      {veilMounted && (
         <div
           className={loadingVeilClasses}
-          role={!preview && request.status === 'loading' ? 'status' : undefined}
+          style={{ opacity: veilOpaque ? 1 : 0 }}
+          role={
+            !preview && (generating || request.status === 'loading')
+              ? 'status'
+              : undefined
+          }
         >
-          {request.status === 'loading' && (
+          {(generating || request.status === 'loading') && (
             <span className='civ__sr-only sr-only'>{labels.loading}</span>
           )}
         </div>

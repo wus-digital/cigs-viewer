@@ -87,6 +87,7 @@ export function SlideTrack({
               onImageError={undefined}
               preview
               enabled={loadedSources.has(neighbor.src)}
+              generating={neighbor.generating}
               fallbackSrc={retainedSrc}
             />
           ) : (

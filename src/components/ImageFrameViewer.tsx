@@ -19,11 +19,15 @@ export function ImageFrameViewer({
   defaultFrameIndex = 0,
   onFrameChange,
   onImageError,
+  onZoomRequest,
   loop = true,
   dragMode = 'slide',
   pixelsPerFrame = 24,
   preloadRadius = 'all',
   showThumbnails = false,
+  allowFullscreen = true,
+  fullscreenIcon,
+  actions,
   enableZoom = false,
   maxZoom = 4,
   labels: customLabels,
@@ -42,6 +46,9 @@ export function ImageFrameViewer({
   validateInteger(pixelsPerFrame, 'pixelsPerFrame', 1);
   if (typeof enableZoom !== 'boolean') {
     throw new TypeError('enableZoom must be a boolean.');
+  }
+  if (typeof allowFullscreen !== 'boolean') {
+    throw new TypeError('allowFullscreen must be a boolean.');
   }
   if (typeof maxZoom !== 'number' || !Number.isFinite(maxZoom) || maxZoom < 1) {
     throw new TypeError(
@@ -100,12 +107,16 @@ export function ImageFrameViewer({
         pixelsPerFrame={pixelsPerFrame}
         preloadRadius={preloadRadius}
         showThumbnails={showThumbnails}
+        allowFullscreen={allowFullscreen}
+        fullscreenIcon={fullscreenIcon}
+        actions={actions}
         enableZoom={enableZoom}
         maxZoom={maxZoom}
         classNames={classNames}
         labels={labels}
         onSelect={selectFrame}
         onImageError={onImageError}
+        onZoomRequest={onZoomRequest}
       >
         {children}
       </ImageSequence>

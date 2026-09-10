@@ -65,6 +65,7 @@ export const CigsViewerViewport = forwardRef<
       labels={labels}
       onImageError={onImageError}
       enabled={loading.enabled}
+      generating={frame.generating}
       onSettled={loading.onSettled}
       onRetry={loading.onRetry}
       fallbackSrc={loading.retainedSources.get(
@@ -86,10 +87,11 @@ export const CigsViewerViewport = forwardRef<
           frames.length < 2 && scale === 1
             ? 'civ__stage--static cursor-default'
             : 'cursor-grab active:cursor-grabbing'
-        }`,
+        } ${fullscreen.active ? 'civ__stage--fullscreen' : ''}`,
         classNames?.viewport,
         className
       )}
+      data-fullscreen={fullscreen.active || undefined}
       role='group'
       aria-label={labels.viewer}
       aria-describedby={instructionsId}

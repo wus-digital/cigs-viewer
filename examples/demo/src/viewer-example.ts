@@ -33,6 +33,21 @@ export const customZoomClasses = 'absolute right-3 top-3 z-[3] rounded-full';
 export const customThumbnailsClasses =
   'mx-auto my-3 max-w-[calc(100%_-_24px)] justify-start gap-3 rounded-xl bg-slate-900 p-2';
 
+export const demoActionsSnippet = `const actions: ViewerAction[] = [
+  {
+    key: 'download',
+    label: 'Bild herunterladen',
+    icon: <DownloadIcon />,
+    onClick: () => downloadCurrentImage(),
+  },
+  {
+    key: 'share',
+    label: 'Konfiguration teilen',
+    icon: <ShareIcon />,
+    onClick: () => shareConfiguration(),
+  },
+];`;
+
 interface ExampleOptions {
   baseUrl: string;
   configuration: RenderConfiguration;
@@ -41,6 +56,8 @@ interface ExampleOptions {
   maxZoom: number;
   quality: RenderQuality;
   showThumbnails: boolean;
+  allowFullscreen: boolean;
+  actionsExample: boolean;
   layout: ViewerLayout;
 }
 
@@ -52,8 +69,11 @@ export function viewerExample({
   maxZoom,
   quality,
   showThumbnails,
+  allowFullscreen,
+  actionsExample,
   layout,
 }: ExampleOptions) {
+  const showActions = actionsExample && layout !== 'custom';
   const imports =
     layout === 'custom'
       ? `import {
@@ -64,7 +84,7 @@ export function viewerExample({
   CigsViewerZoomResetButton,
   CigsViewerThumbnails,
 } from 'cigs-viewer';`
-      : "import { CigsViewer } from 'cigs-viewer';";
+      : `import { CigsViewer${showActions ? ', type ViewerAction' : ''} } from 'cigs-viewer';`;
   const formatted = (value: unknown) =>
     JSON.stringify(value, null, 2).replaceAll('\n', '\n  ');
   const props = `  baseUrl=${JSON.stringify(baseUrl)}
@@ -72,9 +92,11 @@ export function viewerExample({
   cameras={${JSON.stringify(cameras)}}
   quality=${JSON.stringify(quality)}
   showThumbnails={${showThumbnails}}${enableZoom ? '\n  enableZoom' : ''}
-  maxZoom={${maxZoom}}
+  maxZoom={${maxZoom}}${allowFullscreen ? '' : '\n  allowFullscreen={false}'}${showActions ? '\n  actions={actions}' : ''}
   ${layout === 'styled' ? `classNames={${formatted(styledClassNames)}}` : ''}`.trimEnd();
-  if (layout !== 'custom') return `${imports}\n\n<CigsViewer\n${props}\n/>`;
+  const actionsBlock = showActions ? `\n${demoActionsSnippet}\n` : '';
+  if (layout !== 'custom')
+    return `${imports}\n${actionsBlock}\n<CigsViewer\n${props}\n/>`;
   return `${imports}
 
 <CigsViewer

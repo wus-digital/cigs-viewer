@@ -1,5 +1,6 @@
 import { forwardRef } from 'react';
 import {
+  actionButtonClasses,
   arrowClasses,
   fullscreenButtonClasses,
   zoomResetClasses,
@@ -7,6 +8,7 @@ import {
 import { useViewerContext } from './ViewerContext.js';
 import { ViewerButton } from './ViewerButton.js';
 import type { CigsViewerButtonProps } from './ViewerButton.js';
+import type { ViewerAction } from '../types/viewer.js';
 
 function Arrow({ previous }: { previous: boolean }) {
   return (
@@ -113,10 +115,9 @@ export const CigsViewerFullscreenButton = forwardRef<
   HTMLButtonElement,
   CigsViewerButtonProps
 >(function CigsViewerFullscreenButton({ children, ...props }, ref) {
-  const { fullscreen, labels, classNames } = useViewerContext(
-    'CigsViewerFullscreenButton'
-  );
-  if (!fullscreen.supported) return null;
+  const { fullscreen, labels, classNames, allowFullscreen, fullscreenIcon } =
+    useViewerContext('CigsViewerFullscreenButton');
+  if (!fullscreen.supported || !allowFullscreen) return null;
   const label = fullscreen.active ? labels.exitFullscreen : labels.fullscreen;
   return (
     <ViewerButton
@@ -132,7 +133,36 @@ export const CigsViewerFullscreenButton = forwardRef<
     >
       {props.asChild
         ? children
-        : (children ?? <FullscreenIcon active={fullscreen.active} />)}
+        : (children ??
+          fullscreenIcon ?? <FullscreenIcon active={fullscreen.active} />)}
+    </ViewerButton>
+  );
+});
+
+export interface CigsViewerActionButtonProps
+  extends Omit<CigsViewerButtonProps, 'children'> {
+  /** The action to render as a button; icon, label and click handler. */
+  action: ViewerAction;
+}
+
+export const CigsViewerActionButton = forwardRef<
+  HTMLButtonElement,
+  CigsViewerActionButtonProps
+>(function CigsViewerActionButton({ action, ...props }, ref) {
+  const { classNames } = useViewerContext('CigsViewerActionButton');
+  return (
+    <ViewerButton
+      {...props}
+      ref={ref}
+      marker='civ__action'
+      slot='actionButton'
+      defaults={actionButtonClasses}
+      slotOverride={classNames?.actionButton}
+      label={action.label}
+      unavailable={action.disabled ?? false}
+      action={action.onClick}
+    >
+      {action.icon}
     </ViewerButton>
   );
 });
