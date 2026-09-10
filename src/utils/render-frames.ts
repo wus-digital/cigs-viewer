@@ -7,6 +7,7 @@ import type {
   ViewerViewMode,
 } from '../types/viewer.js';
 import { resolveCameras } from './cameras.js';
+import { buildHashedImagePath } from './image-url-hash.js';
 
 const defaultOmittedKeys = {
   exterior: ['AKZI', 'DHC'],
@@ -101,6 +102,25 @@ function buildRenderCode(
   return codes.join('_');
 }
 
+function resolveBaureihe(options: ViewerRenderOptions): string {
+  if (options.baureihe !== undefined) {
+    validateToken(options.baureihe, 'Baureihe');
+    return options.baureihe.toUpperCase();
+  }
+  const raw = options.configuration?.B;
+  const isValidRaw =
+    (typeof raw === 'string' && raw.trim() !== '') ||
+    (typeof raw === 'number' && Number.isFinite(raw));
+  if (!isValidRaw) {
+    throw new TypeError(
+      'baureihe or configuration.B is required to build hashed image URLs.'
+    );
+  }
+  const token = `B${raw}`.toUpperCase();
+  validateToken(token, 'Baureihe');
+  return token;
+}
+
 export function buildViewerFrames(options: ViewerRenderOptions): {
   exteriorFrames: readonly ViewerFrame[];
   interiorFrames: readonly ViewerFrame[];
@@ -114,6 +134,7 @@ export function buildViewerFrames(options: ViewerRenderOptions): {
   } = options;
   const { exteriorCameras, interiorCameras } = resolveCameras(options);
   const base = normalizeBaseUrl(baseUrl);
+  const baureihe = resolveBaureihe(options);
   if (
     !RENDER_QUALITIES.includes(quality) ||
     (thumbnailQuality !== undefined &&
@@ -138,15 +159,19 @@ export function buildViewerFrames(options: ViewerRenderOptions): {
       if (ids.has(camera.id))
         throw new TypeError(`Duplicate ${viewMode} camera ID: ${camera.id}`);
       ids.add(camera.id);
+      const hashedPath = (renderQuality: string) =>
+        `${base}/${buildHashedImagePath(baureihe, `${code}_PQM-${renderQuality}`, camera.id)}`;
       return {
         cameraId: camera.id,
-        src: `${base}/${code}_${camera.id}_PQM-${quality}.webp`,
-        zoomSrc: `${base}/${code}_${camera.id}_PQM-${quality === 'FHD' || quality === 'WQHD' ? '4K' : quality}.webp`,
+        src: hashedPath(quality),
+        zoomSrc: hashedPath(
+          quality === 'FHD' || quality === 'WQHD' ? '4K' : quality
+        ),
         ...(camera.label === undefined ? {} : { alt: camera.label }),
         ...(thumbnailQuality === undefined
           ? {}
           : {
-              thumbnailSrc: `${base}/${code}_${camera.id}_PQM-${thumbnailQuality}.webp`,
+              thumbnailSrc: hashedPath(thumbnailQuality),
             }),
       };
     });

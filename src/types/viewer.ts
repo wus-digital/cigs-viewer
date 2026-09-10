@@ -45,6 +45,12 @@ export interface ViewerRenderOptions {
   thumbnailQuality?: RenderQuality;
   /** Defaults match the existing CIGS render filters. [] disables a view's filter. */
   omittedConfigurationKeys?: Partial<Record<ViewerViewMode, readonly string[]>>;
+  /**
+   * Baureihe used as the unhashed URL prefix, e.g. `B01`. Defaults to
+   * `B${configuration.B}` (uppercased). Required if `configuration.B` is
+   * missing.
+   */
+  baureihe?: string;
 }
 
 export interface ViewerFrame {

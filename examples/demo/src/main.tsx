@@ -19,7 +19,7 @@ import { viewerExample, type ViewerLayout } from './viewer-example.js';
 import { focusStyles, headingStyles, paragraphStyles } from './utilities.js';
 import './style.css';
 
-const BASE_URL = 'https://cigs.elferplatz.com';
+const BASE_URL = 'https://cdn.cigs.elferplatz.com';
 const INITIAL_CONFIGURATION = { B: '01', M: '01', P: '070707', PMV: '100' };
 const INITIAL_CAMERAS: readonly ViewerCameraId[] = [
   'C1',

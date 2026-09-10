@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { buildViewerFrames } from '../dist/utils/render-frames.js';
+import { decodeHashedUrl } from './helpers/hashed-url.mjs';
 
 const options = {
   baseUrl: 'https://renders.example.test/assets/',
@@ -17,38 +18,44 @@ const options = {
   interiorCameras: [{ id: 'CINT_DASH' }, { id: 'CINT_SEAT', label: 'Seats' }],
 };
 
-test('builds exact CIGS paths with per-view filters and camera tokens, without sorting configuration', () => {
+test('builds hashed CIGS paths with per-view filters and camera tokens, without sorting configuration', () => {
   const result = buildViewerFrames(options);
-  assert.deepEqual(result.exteriorFrames, [
-    {
-      cameraId: 'C360_001',
-      alt: 'Front',
-      src: 'https://renders.example.test/assets/B01_M01_P070707_PMV100_AKZ01_C360_001_PQM-FHD.webp',
-      zoomSrc:
-        'https://renders.example.test/assets/B01_M01_P070707_PMV100_AKZ01_C360_001_PQM-4K.webp',
-    },
-    {
-      cameraId: 'C360_106',
-      src: 'https://renders.example.test/assets/B01_M01_P070707_PMV100_AKZ01_C360_106_PQM-FHD.webp',
-      zoomSrc:
-        'https://renders.example.test/assets/B01_M01_P070707_PMV100_AKZ01_C360_106_PQM-4K.webp',
-    },
-  ]);
-  assert.deepEqual(result.interiorFrames, [
-    {
-      cameraId: 'CINT_DASH',
-      src: 'https://renders.example.test/assets/B01_M01_P070707_PMV100_AKZI02_DHC03_CINT_DASH_PQM-FHD.webp',
-      zoomSrc:
-        'https://renders.example.test/assets/B01_M01_P070707_PMV100_AKZI02_DHC03_CINT_DASH_PQM-4K.webp',
-    },
-    {
-      cameraId: 'CINT_SEAT',
-      alt: 'Seats',
-      src: 'https://renders.example.test/assets/B01_M01_P070707_PMV100_AKZI02_DHC03_CINT_SEAT_PQM-FHD.webp',
-      zoomSrc:
-        'https://renders.example.test/assets/B01_M01_P070707_PMV100_AKZI02_DHC03_CINT_SEAT_PQM-4K.webp',
-    },
-  ]);
+  const front = decodeHashedUrl(
+    result.exteriorFrames[0].src,
+    result.exteriorFrames[0].cameraId
+  );
+  assert.equal(front.baureihe, 'B01');
+  assert.equal(front.cameraId, 'C360_001');
+  assert.equal(
+    front.configurationCode,
+    'B01_M01_P070707_PMV100_AKZ01_PQM-FHD'
+  );
+  assert.equal(result.exteriorFrames[0].alt, 'Front');
+  assert.equal(
+    decodeHashedUrl(result.exteriorFrames[0].zoomSrc, 'C360_001')
+      .configurationCode,
+    'B01_M01_P070707_PMV100_AKZ01_PQM-4K'
+  );
+  assert.equal(result.exteriorFrames[1].cameraId, 'C360_106');
+  assert.equal(
+    decodeHashedUrl(result.exteriorFrames[1].src, 'C360_106').configurationCode,
+    'B01_M01_P070707_PMV100_AKZ01_PQM-FHD'
+  );
+  assert.equal(result.interiorFrames[0].cameraId, 'CINT_DASH');
+  assert.equal(
+    decodeHashedUrl(result.interiorFrames[0].src, 'CINT_DASH')
+      .configurationCode,
+    'B01_M01_P070707_PMV100_AKZI02_DHC03_PQM-FHD'
+  );
+  assert.equal(result.interiorFrames[1].cameraId, 'CINT_SEAT');
+  assert.equal(
+    decodeHashedUrl(result.interiorFrames[1].src, 'CINT_SEAT')
+      .configurationCode,
+    'B01_M01_P070707_PMV100_AKZI02_DHC03_PQM-FHD'
+  );
+  for (const frame of [...result.exteriorFrames, ...result.interiorFrames]) {
+    assert.ok(frame.src.startsWith('https://renders.example.test/assets/'));
+  }
 });
 
 test('preserves code order, skips missing values, retains numeric zero and allows filter overrides', () => {
@@ -67,12 +74,13 @@ test('preserves code order, skips missing values, retains numeric zero and allow
     omittedConfigurationKeys: { exterior: ['Z'], interior: [] },
   });
   assert.equal(
-    result.exteriorFrames[0].src,
-    '/M01_B01_AKZ02_C360_001_PQM-FHD.webp'
+    decodeHashedUrl(result.exteriorFrames[0].src, 'C360_001').configurationCode,
+    'M01_B01_AKZ02_PQM-FHD'
   );
   assert.equal(
-    result.interiorFrames[0].src,
-    '/M01_B01_Z0_AKZ02_CINT_DASH_PQM-FHD.webp'
+    decodeHashedUrl(result.interiorFrames[0].src, 'CINT_DASH')
+      .configurationCode,
+    'M01_B01_Z0_AKZ02_PQM-FHD'
   );
 });
 
@@ -84,16 +92,20 @@ test('all supported qualities and thumbnail paths use the same configuration and
       thumbnailQuality: 'FHD',
     });
     for (const frame of [...result.exteriorFrames, ...result.interiorFrames]) {
-      assert.ok(frame.src.endsWith(`_${frame.cameraId}_PQM-${quality}.webp`));
+      const decodedSrc = decodeHashedUrl(frame.src, frame.cameraId);
+      assert.ok(decodedSrc.configurationCode.endsWith(`_PQM-${quality}`));
+      const zoomQuality =
+        quality === 'FHD' || quality === 'WQHD' ? '4K' : quality;
       assert.equal(
-        frame.zoomSrc,
-        quality === 'FHD' || quality === 'WQHD'
-          ? frame.src.replace(`PQM-${quality}.webp`, 'PQM-4K.webp')
-          : frame.src
+        decodeHashedUrl(frame.zoomSrc, frame.cameraId).configurationCode,
+        decodedSrc.configurationCode.replace(
+          `PQM-${quality}`,
+          `PQM-${zoomQuality}`
+        )
       );
       assert.equal(
-        frame.thumbnailSrc,
-        frame.src.replace(`PQM-${quality}.webp`, 'PQM-FHD.webp')
+        decodeHashedUrl(frame.thumbnailSrc, frame.cameraId).configurationCode,
+        decodedSrc.configurationCode.replace(`PQM-${quality}`, 'PQM-FHD')
       );
     }
   }
@@ -106,8 +118,18 @@ test('camera IDs are explicit and are not rewritten into panorama or invented se
     exteriorCameras: [],
   });
   assert.deepEqual(result.exteriorFrames, []);
-  assert.match(result.interiorFrames[0].src, /_C360INT_004_PQM-FHD.webp$/);
-  assert.match(result.interiorFrames[1].src, /_CUSTOM-CAMERA_PQM-FHD.webp$/);
+  assert.equal(result.interiorFrames[0].cameraId, 'C360INT_004');
+  assert.match(
+    decodeHashedUrl(result.interiorFrames[0].src, 'C360INT_004')
+      .configurationCode,
+    /_PQM-FHD$/
+  );
+  assert.equal(result.interiorFrames[1].cameraId, 'CUSTOM-CAMERA');
+  assert.match(
+    decodeHashedUrl(result.interiorFrames[1].src, 'CUSTOM-CAMERA')
+      .configurationCode,
+    /_PQM-FHD$/
+  );
 });
 
 test('does not mutate configuration, camera lists or options', () => {
@@ -130,7 +152,7 @@ test('rejects malformed configuration, duplicate cameras, unsafe URL tokens and 
     { baseUrl: '' },
     { baseUrl: 'renders' },
     { baseUrl: '//example.test' },
-    { baseUrl: 'https://user:secret@example.test' },
+    { baseUrl: '******example.test' },
     { baseUrl: '/renders?x=1' },
     { baseUrl: 'javascript:alert(1)' },
     { baseUrl: '/renders#hash' },
@@ -145,6 +167,9 @@ test('rejects malformed configuration, duplicate cameras, unsafe URL tokens and 
     { configuration: { B: 'x?y' } },
     { configuration: { B: 'x#y' } },
     { configuration: { 'B/': '01' } },
+    { baureihe: '../bad' },
+    { baureihe: 'x?y' },
+    { baureihe: '' },
     { exteriorCameras: null },
     { interiorCameras: null },
     { exteriorCameras: [{ id: 'C1' }, { id: 'C1' }] },
@@ -163,11 +188,34 @@ test('rejects malformed configuration, duplicate cameras, unsafe URL tokens and 
   }
 });
 
+test('baureihe prop overrides configuration.B and is uppercased', () => {
+  const result = buildViewerFrames({
+    baseUrl: '/renders',
+    configuration: { B: '01', M: '01' },
+    baureihe: 'bgt3rs',
+    cameras: ['C1'],
+  });
+  const decoded = decodeHashedUrl(result.exteriorFrames[0].src, 'C1');
+  assert.equal(decoded.baureihe, 'BGT3RS');
+  assert.equal(decoded.configurationCode, 'B01_M01_PQM-FHD');
+});
+
+test('missing baureihe and configuration.B throws', () => {
+  assert.throws(
+    () =>
+      buildViewerFrames({
+        baseUrl: '/renders',
+        configuration: { M: '01' },
+      }),
+    /baureihe/i
+  );
+});
+
 test('omitted camera arrays build the exact default cameras in the requested order', () => {
   const defaults = { baseUrl: '/renders', configuration: { B: '01' } };
   const result = buildViewerFrames(defaults);
-  const exterior = ['C1', 'C2', 'C3', 'C4', 'C5', 'C9', 'C10'];
-  const interior = ['C6', 'C7', 'C8', 'C11', 'C12', 'C13', 'C14'];
+  const exterior = ['C1', 'C2', 'C3', 'C4', 'C5', 'C8', 'C9', 'C10'];
+  const interior = ['C6', 'C7', 'C11', 'C12', 'C13', 'C14'];
   assert.deepEqual(
     result.exteriorFrames.map((frame) => frame.cameraId),
     exterior
@@ -177,13 +225,20 @@ test('omitted camera arrays build the exact default cameras in the requested ord
     interior
   );
   assert.deepEqual(
-    result.exteriorFrames.map((frame) => frame.src),
-    exterior.map((id) => `/renders/B01_${id}_PQM-FHD.webp`)
+    result.exteriorFrames.map(
+      (frame) => decodeHashedUrl(frame.src, frame.cameraId).configurationCode
+    ),
+    exterior.map(() => 'B01_PQM-FHD')
   );
   assert.deepEqual(
-    result.interiorFrames.map((frame) => frame.src),
-    interior.map((id) => `/renders/B01_${id}_PQM-FHD.webp`)
+    result.interiorFrames.map(
+      (frame) => decodeHashedUrl(frame.src, frame.cameraId).configurationCode
+    ),
+    interior.map(() => 'B01_PQM-FHD')
   );
+  for (const frame of [...result.exteriorFrames, ...result.interiorFrames]) {
+    assert.ok(frame.src.startsWith('/renders/B01_h1'));
+  }
   assert.deepEqual(
     buildViewerFrames({
       ...defaults,
@@ -204,10 +259,10 @@ test('camera overrides are independent and empty arrays do not fall back to defa
   assert.equal(result.interiorFrames[0].cameraId, 'C6');
   const emptyExterior = buildViewerFrames({ ...defaults, exteriorCameras: [] });
   assert.deepEqual(emptyExterior.exteriorFrames, []);
-  assert.equal(emptyExterior.interiorFrames.length, 7);
+  assert.equal(emptyExterior.interiorFrames.length, 6);
   const emptyInterior = buildViewerFrames({ ...defaults, interiorCameras: [] });
   assert.deepEqual(emptyInterior.interiorFrames, []);
-  assert.equal(emptyInterior.exteriorFrames.length, 7);
+  assert.equal(emptyInterior.exteriorFrames.length, 8);
 });
 
 test('cameras selects and classifies only known IDs, preserving input order per view', () => {
@@ -226,12 +281,12 @@ test('cameras selects and classifies only known IDs, preserving input order per 
     ['C12', 'C6']
   );
   assert.equal(
-    result.exteriorFrames[0].src,
-    '/renders/B01_AKZ02_C5_PQM-FHD.webp'
+    decodeHashedUrl(result.exteriorFrames[0].src, 'C5').configurationCode,
+    'B01_AKZ02_PQM-FHD'
   );
   assert.equal(
-    result.interiorFrames[0].zoomSrc,
-    '/renders/B01_AKZI03_C12_PQM-4K.webp'
+    decodeHashedUrl(result.interiorFrames[0].zoomSrc, 'C12').configurationCode,
+    'B01_AKZI03_PQM-4K'
   );
   assert.deepEqual(selection, ['C12', 'C5', 'C6', 'C1']);
 });

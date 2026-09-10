@@ -10,6 +10,7 @@ import {
   CigsViewerNextButton,
 } from 'cigs-viewer';
 import { adjacentSourceBatches, normalizeFrame } from '../dist/utils/frames.js';
+import { decodedCode } from './helpers/hashed-url.mjs';
 
 test('exports CigsViewer and ships only the renamed component module', async () => {
   const api = await import('cigs-viewer');
@@ -48,7 +49,9 @@ const props = {
 test('ESM entry is an SSR-safe client boundary with typed exports and no application dependencies', async () => {
   assert.equal(typeof window, 'undefined');
   const html = renderToString(React.createElement(CigsViewer, props));
-  assert.match(html, /src="\/renders\/B01_M01_C360_001_PQM-FHD.webp"/);
+  const srcMatch = html.match(/src="([^"]+)"/);
+  assert.ok(srcMatch);
+  assert.equal(decodedCode(srcMatch[1], 'C360_001'), 'B01_M01_PQM-FHD');
   assert.doesNotMatch(html, /<(?:canvas|iframe|video)\b/);
   const custom = renderToString(
     React.createElement(
@@ -74,6 +77,7 @@ test('ESM entry is an SSR-safe client boundary with typed exports and no applica
   );
   assert.deepEqual(Object.keys(manifest.dependencies).sort(), [
     '@radix-ui/react-slot',
+    'pako',
     'tailwind-merge',
   ]);
   assert.deepEqual(Object.keys(manifest.peerDependencies), [
@@ -139,15 +143,15 @@ test('invalid options fail explicitly, while out-of-range indices are safely cla
       renderToString(React.createElement(CigsViewer, { ...props, ...options }))
     );
   }
-  assert.match(
-    renderToString(
-      React.createElement(CigsViewer, {
-        ...props,
-        frameIndex: 100,
-      })
-    ),
-    /B01_M01_C360_001_PQM-FHD.webp/
+  const clampedHtml = renderToString(
+    React.createElement(CigsViewer, {
+      ...props,
+      frameIndex: 100,
+    })
   );
+  const clampedSrcMatch = clampedHtml.match(/src="([^"]+)"/);
+  assert.ok(clampedSrcMatch);
+  assert.equal(decodedCode(clampedSrcMatch[1], 'C360_001'), 'B01_M01_PQM-FHD');
 });
 
 test('frame math handles wraparound, empty data and bounded preloading', () => {

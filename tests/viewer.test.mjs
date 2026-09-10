@@ -20,6 +20,7 @@ import {
   DEFAULT_INTERIOR_CAMERAS,
 } from 'cigs-viewer';
 import { ImageFrameViewer } from '../dist/components/ImageFrameViewer.js';
+import { decodedCode, decodedCodes } from './helpers/hashed-url.mjs';
 
 const act = React.act ?? legacyAct;
 const h = React.createElement;
@@ -670,9 +671,9 @@ test('compound: public root hydrates custom controls without warnings and preser
   assert.deepEqual(errors, []);
   assert.equal(stage().tabIndex, 0);
   assert.ok(document.getElementById(stage().getAttribute('aria-describedby')));
-  assert.match(activeImage().getAttribute('src'), /_C1_PQM-FHD/);
+  assert.match(decodedCode(activeImage().getAttribute('src'), 'C1'), /PQM-FHD/);
   await key('ArrowRight');
-  assert.match(activeImage().getAttribute('src'), /_C2_PQM-FHD/);
+  assert.match(decodedCode(activeImage().getAttribute('src'), 'C2'), /PQM-FHD/);
   await act(() =>
     button('Previous image').dispatchEvent(
       new dom.window.KeyboardEvent('keydown', {
@@ -682,8 +683,8 @@ test('compound: public root hydrates custom controls without warnings and preser
     )
   );
   assert.match(
-    activeImage().getAttribute('src'),
-    /_C2_PQM-FHD/,
+    decodedCode(activeImage().getAttribute('src'), 'C2'),
+    /PQM-FHD/,
     'control keys never trigger viewport navigation'
   );
 });
@@ -2121,20 +2122,20 @@ test('public viewer navigates the full default camera order without camera props
     interiorCameras: undefined,
   });
   for (const [mode, code, ids] of [
-    ['Exterior', exteriorCode, ['C1', 'C2', 'C3', 'C4', 'C5', 'C9', 'C10']],
-    ['Interior', interiorCode, ['C6', 'C7', 'C8', 'C11', 'C12', 'C13', 'C14']],
+    ['Exterior', exteriorCode, ['C1', 'C2', 'C3', 'C4', 'C5', 'C8', 'C9', 'C10']],
+    ['Interior', interiorCode, ['C6', 'C7', 'C11', 'C12', 'C13', 'C14']],
   ]) {
     await selectView(mode);
     for (const id of ids) {
       assert.equal(
-        activeImage().getAttribute('src'),
-        `/renders/${code}_${id}_PQM-FHD.webp`
+        decodedCode(activeImage().getAttribute('src'), id),
+        `${code}_PQM-FHD`
       );
       await click('Next image');
     }
     assert.equal(
-      activeImage().getAttribute('src'),
-      `/renders/${code}_${ids[0]}_PQM-FHD.webp`
+      decodedCode(activeImage().getAttribute('src'), ids[0]),
+      `${code}_PQM-FHD`
     );
   }
 });
@@ -2147,35 +2148,35 @@ test('public API builds both camera sequences from configuration, including swip
     onFrameChange: (change) => changes.push(change),
   });
   assert.equal(
-    activeImage().getAttribute('src'),
-    `/renders/${exteriorCode}_C360_001_PQM-FHD.webp`
+    decodedCode(activeImage().getAttribute('src'), 'C360_001'),
+    `${exteriorCode}_PQM-FHD`
   );
   assert.equal(activeImage().alt, 'Front');
   assert.deepEqual(preloaded, []);
   await loadCurrent();
   await finishPreloads();
-  assert.deepEqual(preloaded, [
-    `/renders/${exteriorCode}_C360_003_PQM-FHD.webp`,
-    `/renders/${exteriorCode}_C360_002_PQM-FHD.webp`,
-  ]);
+  assert.deepEqual(
+    decodedCodes(preloaded, ['C360_003', 'C360_002']),
+    [`${exteriorCode}_PQM-FHD`, `${exteriorCode}_PQM-FHD`]
+  );
   await pointer('pointerdown', 100);
   await pointer('pointermove', 80);
   await pointer('pointerup', 80);
   assert.equal(
-    activeImage().getAttribute('src'),
-    `/renders/${exteriorCode}_C360_002_PQM-FHD.webp`
+    decodedCode(activeImage().getAttribute('src'), 'C360_002'),
+    `${exteriorCode}_PQM-FHD`
   );
   await click('Interior');
   assert.equal(
-    activeImage().getAttribute('src'),
-    `/renders/${interiorCode}_CINT_DASH_PQM-FHD.webp`
+    decodedCode(activeImage().getAttribute('src'), 'CINT_DASH'),
+    `${interiorCode}_PQM-FHD`
   );
   await pointer('pointerdown', 100);
   await pointer('pointermove', 80);
   await pointer('pointerup', 80);
   assert.equal(
-    activeImage().getAttribute('src'),
-    `/renders/${interiorCode}_CINT_SEAT_PQM-FHD.webp`
+    decodedCode(activeImage().getAttribute('src'), 'CINT_SEAT'),
+    `${interiorCode}_PQM-FHD`
   );
   assert.equal(activeImage().alt, 'Seats');
   assert.deepEqual(
@@ -2187,8 +2188,8 @@ test('public API builds both camera sequences from configuration, including swip
   );
   await click('Exterior');
   assert.equal(
-    activeImage().getAttribute('src'),
-    `/renders/${exteriorCode}_C360_002_PQM-FHD.webp`
+    decodedCode(activeImage().getAttribute('src'), 'C360_002'),
+    `${exteriorCode}_PQM-FHD`
   );
 });
 
@@ -2209,8 +2210,8 @@ test('configuration and quality updates rebuild current, neighbor and thumbnail 
   });
   const code = 'B01_M01_PFFFFFF_PMV100_AKZ01';
   assert.equal(
-    activeImage().getAttribute('src'),
-    `/renders/${code}_C360_002_PQM-8K.webp`
+    decodedCode(activeImage().getAttribute('src'), 'C360_002'),
+    `${code}_PQM-8K`
   );
   assert.deepEqual(preloaded, []);
   assert.equal(container.querySelector('.civ__thumbnails img'), null);
@@ -2220,36 +2221,48 @@ test('configuration and quality updates rebuild current, neighbor and thumbnail 
     /Loading/
   );
   await loadCurrent();
-  assert.deepEqual(preloaded, [
-    `/renders/${code}_C360_001_PQM-8K.webp`,
-    `/renders/${code}_C360_003_PQM-8K.webp`,
-  ]);
+  assert.deepEqual(
+    decodedCodes(preloaded, ['C360_001', 'C360_003']),
+    [`${code}_PQM-8K`, `${code}_PQM-8K`]
+  );
   await act(() => preloadImages[0].onload());
   assert.equal(preloaded.length, 2);
   assert.equal(container.querySelector('.civ__thumbnails img'), null);
   await act(() => preloadImages[1].onload());
-  assert.deepEqual(preloaded, [
-    `/renders/${code}_C360_001_PQM-8K.webp`,
-    `/renders/${code}_C360_003_PQM-8K.webp`,
-    `/renders/${code}_C360_001_PQM-WQHD.webp`,
-  ]);
+  assert.deepEqual(
+    decodedCodes(preloaded, ['C360_001', 'C360_003', 'C360_001']),
+    [`${code}_PQM-8K`, `${code}_PQM-8K`, `${code}_PQM-WQHD`]
+  );
   await finishPreloads();
-  assert.deepEqual(preloaded, [
-    `/renders/${code}_C360_001_PQM-8K.webp`,
-    `/renders/${code}_C360_003_PQM-8K.webp`,
-    `/renders/${code}_C360_001_PQM-WQHD.webp`,
-    `/renders/${code}_C360_002_PQM-WQHD.webp`,
-    `/renders/${code}_C360_003_PQM-WQHD.webp`,
-    '/renders/B01_M01_PFFFFFF_PMV100_AKZI02_DHC03_CINT_DASH_PQM-WQHD.webp',
-  ]);
+  assert.deepEqual(
+    decodedCodes(preloaded, [
+      'C360_001',
+      'C360_003',
+      'C360_001',
+      'C360_002',
+      'C360_003',
+      'CINT_DASH',
+    ]),
+    [
+      `${code}_PQM-8K`,
+      `${code}_PQM-8K`,
+      `${code}_PQM-WQHD`,
+      `${code}_PQM-WQHD`,
+      `${code}_PQM-WQHD`,
+      'B01_M01_PFFFFFF_PMV100_AKZI02_DHC03_PQM-WQHD',
+    ]
+  );
   assert.equal(
-    container.querySelector('.civ__thumbnails img').getAttribute('src'),
-    `/renders/${code}_C360_001_PQM-WQHD.webp`
+    decodedCode(
+      container.querySelector('.civ__thumbnails img').getAttribute('src'),
+      'C360_001'
+    ),
+    `${code}_PQM-WQHD`
   );
   await click('Interior');
   assert.equal(
-    activeImage().getAttribute('src'),
-    '/renders/B01_M01_PFFFFFF_PMV100_AKZI02_DHC03_CINT_DASH_PQM-8K.webp'
+    decodedCode(activeImage().getAttribute('src'), 'CINT_DASH'),
+    'B01_M01_PFFFFFF_PMV100_AKZI02_DHC03_PQM-8K'
   );
 });
 
@@ -2271,8 +2284,8 @@ test('cameraId controls selection and callbacks identify the requested camera', 
   await renderConfiguration({ viewMode: 'interior', cameraId: 'CINT_DOOR' });
   assert.equal(activeImage().alt, 'Door');
   assert.equal(
-    activeImage().getAttribute('src'),
-    `/renders/${interiorCode}_CINT_DOOR_PQM-FHD.webp`
+    decodedCode(activeImage().getAttribute('src'), 'CINT_DOOR'),
+    `${interiorCode}_PQM-FHD`
   );
 });
 
@@ -2285,8 +2298,8 @@ test('errors report the generated URL and camera and retry the same configuratio
   await act(() => activeImage().dispatchEvent(new dom.window.Event('error')));
   assert.equal(errors[0].change.frame.cameraId, 'CINT_DASH');
   assert.equal(
-    errors[0].change.frame.src,
-    `/renders/${interiorCode}_CINT_DASH_PQM-FHD.webp`
+    decodedCode(errors[0].change.frame.src, 'CINT_DASH'),
+    `${interiorCode}_PQM-FHD`
   );
   await click('Retry');
   assert.equal(activeImage().getAttribute('src'), errors[0].change.frame.src);
@@ -2302,8 +2315,8 @@ test('empty camera sets and custom render-code filters are supported by the publ
   assert.equal(stage().getAttribute('aria-label'), 'Interior');
   assert.equal(container.querySelector('.civ__view-thumbnail'), null);
   assert.equal(
-    activeImage().getAttribute('src'),
-    '/renders/B01_M01_P070707_PMV100_AKZ01_AKZI02_DHC03_CINT_DASH_PQM-FHD.webp'
+    decodedCode(activeImage().getAttribute('src'), 'CINT_DASH'),
+    'B01_M01_P070707_PMV100_AKZ01_AKZI02_DHC03_PQM-FHD'
   );
 });
 
@@ -2315,13 +2328,13 @@ test('common camera selection handles single views, both views and no cameras wi
   };
   await renderConfiguration({ ...props, cameras: ['C1'] });
   assert.equal(stage().getAttribute('aria-label'), 'Exterior');
-  assert.match(activeImage().getAttribute('src'), /_C1_PQM-FHD/);
+  assert.match(decodedCode(activeImage().getAttribute('src'), 'C1'), /PQM-FHD/);
   assert.equal(button('Next image'), undefined);
   assert.equal(container.querySelector('.civ__view-thumbnail'), null);
   assert.equal(container.querySelector('.civ__thumbnails'), null);
   await renderConfiguration({ ...props, cameras: ['C6'] });
   assert.equal(stage().getAttribute('aria-label'), 'Interior');
-  assert.match(activeImage().getAttribute('src'), /_C6_PQM-FHD/);
+  assert.match(decodedCode(activeImage().getAttribute('src'), 'C6'), /PQM-FHD/);
   assert.equal(button('Previous image'), undefined);
   assert.equal(container.querySelector('.civ__view-thumbnail'), null);
   assert.equal(container.querySelector('.civ__thumbnails'), null);
@@ -2402,8 +2415,8 @@ test('public camera selection produces only the selected 4K upgrade on zoom', as
   await wheel(-200);
   const sharp = container.querySelector('.civ__zoom-quality img');
   assert.equal(
-    sharp.getAttribute('src'),
-    `/renders/${interiorCode}_C6_PQM-4K.webp`
+    decodedCode(sharp.getAttribute('src'), 'C6'),
+    `${interiorCode}_PQM-4K`
   );
   assert.equal(activeImage(), base);
   assert.equal(base.style.visibility, 'visible');
@@ -2432,7 +2445,7 @@ test('configuration-driven public entry hydrates and navigates without mismatche
   await click('Interior');
   await key('End');
   assert.equal(
-    activeImage().getAttribute('src'),
-    `/renders/${interiorCode}_CINT_DOOR_PQM-FHD.webp`
+    decodedCode(activeImage().getAttribute('src'), 'CINT_DOOR'),
+    `${interiorCode}_PQM-FHD`
   );
 });

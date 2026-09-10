@@ -9,7 +9,7 @@ import {
 } from '../dist/tests/viewer-example.js';
 
 const options = {
-  baseUrl: 'https://cigs.elferplatz.com',
+  baseUrl: 'https://cdn.cigs.elferplatz.com',
   configuration: { B: '01', M: '01', P: '070707', PMV: '100' },
   cameras: ['C1', 'C6'],
   enableZoom: false,

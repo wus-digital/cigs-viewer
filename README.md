@@ -112,20 +112,49 @@ kombiniert werden. Neue Integrationen verwenden nur die gemeinsame Auswahl.
 
 ### So werden die Pfade gebaut
 
-```text
-{baseUrl}/{key}{value}_{key}{value}_{camera.id}_PQM-{quality}.webp
-```
-
-Fuer die obige Konfiguration entstehen automatisch beispielsweise:
+Intern wird pro Bild zunaechst derselbe Konfigurationscode wie bisher gebaut:
 
 ```text
-https://renders.example.com/B01_M01_P070707_PMV100_C1_PQM-FHD.webp
-https://renders.example.com/B01_M01_P070707_PMV100_C6_PQM-FHD.webp
+{key}{value}_{key}{value}_{camera.id}_PQM-{quality}
 ```
 
-- Die Kamera-ID ist der **vollstaendige Kamera-Token im Dateinamen**, nicht ein
-  Pfad und nicht ein Alias fuer eine Fisheye-Yaw-/Pitch-Position. IDs werden weder
-  umgeschrieben noch automatisch mit `C360`/`C360INT` ergaenzt.
+Dieser Code wird jedoch **nicht** mehr im Klartext in die URL geschrieben.
+Stattdessen wendet der Viewer die vom CIGS-Backend vorgegebene
+Frontend-Hashing-Regel an (1:1 uebernommen):
+
+1. `configurationCode` normalisieren:
+   - `.webp`-Endung entfernen.
+   - Kamera-Token (`C1`, `C2`, `C99`, ...) aus dem Code extrahieren und vor
+     dem Hashen entfernen – die Kamera wird separat als Suffix angehaengt und
+     ist **nicht** Teil des Hash-Payloads.
+   - restliche Tokens an `_` splitten, leere Tokens verwerfen und mit `_`
+     wieder zusammenfuegen.
+2. Payload bauen: `cfg:v1:${normalizedConfigurationCodeOhneKamera}`.
+3. Payload mit `deflateRaw` (Level `9`) komprimieren.
+4. Ergebnis als `base64url` kodieren (kein Padding, `+`/`/` ersetzt).
+5. Prefix `h1` davor setzen.
+6. Prefix fuer die Baureihe davor setzen: `${baureihe}_${hash}`.
+7. Kamera-Suffix hinten anhaengen: `${baureihe}_${hash}_${camera.id}`.
+8. Die Bild-URL ist dann `{baseUrl}/${baureihe}_${hash}_${camera.id}.webp`.
+
+Die `baureihe` wird automatisch aus `configuration.B` abgeleitet (z. B. `'01'`
+wird zu `B01`), kann aber ueber die optionale Prop `baureihe` explizit
+ueberschrieben werden. Fuer die obige Beispielkonfiguration entsteht damit
+beispielsweise fuer Kamera `C1`:
+
+```text
+https://renders.example.com/B01_h1S05LtyoztHIyMIz3NTCMDzAwB8H4AN8wQwOD-IBAX103DxcA_C1.webp
+```
+
+Der tatsaechliche Hash aendert sich mit jedem Konfigurationscode; nur das
+Muster `{baseUrl}/{baureihe}_{hash}_{camera.id}.webp` ist stabil. Da die
+Kamera nicht Teil des Hash-Payloads ist, teilen sich alle Kameras derselben
+Konfiguration denselben Hash und unterscheiden sich nur im
+`_{camera.id}`-Suffix.
+
+- Die Kamera-ID ist der **vollstaendige Kamera-Token im Konfigurationscode**,
+  nicht ein Pfad und nicht ein Alias fuer eine Fisheye-Yaw-/Pitch-Position.
+  IDs werden weder umgeschrieben noch automatisch mit `C360`/`C360INT` ergaenzt.
 - Die Reihenfolge der Kamera-Arrays bestimmt die Swipe-Reihenfolge. Beide
   Ansichten duerfen unterschiedlich viele Kameras haben.
 - Die `Object.entries(configuration)`-Reihenfolge bleibt wie im bisherigen
@@ -139,6 +168,8 @@ https://renders.example.com/B01_M01_P070707_PMV100_C6_PQM-FHD.webp
 - Qualitaeten: `FHD`, `WQHD`, `4K`, `4KHQ`, `8K`, `8KHQ`; Standard `FHD`.
   Der Render-Service muss die gewaehlte Qualitaet fuer die Kamera anbieten.
 - Die Dateiendung ist `.webp`, entsprechend dem vorhandenen CIGS-Schema.
+- Ohne `configuration.B` **und** ohne explizite `baureihe`-Prop wirft der
+  Viewer einen Fehler, da die Baureihe fester Bestandteil des Hash-Prefixes ist.
 
 Das Paket enthaelt weder Produktbilder noch einen Render-Service.
 **Das bisherige einzelne `C360INT`-Panorama wird nicht in Kamera-Einzelbilder
@@ -206,6 +237,7 @@ Host-App kontrollierte Kamera-IDs ebenfalls aktualisieren.
 | --- | --- | --- |
 | `configuration` | erforderlich | `Readonly<Record<string, string \| number \| null \| undefined>>` |
 | `baseUrl` | erforderlich | HTTP(S)-Adresse oder Root-relatives Verzeichnis wie `/renders` |
+| `baureihe` | aus `configuration.B` abgeleitet | Optionaler Override fuer den Baureihe-Prefix im gehashten Bildpfad, z. B. `'B01'`; erforderlich, wenn `configuration.B` fehlt |
 | `cameras` | alle System-Kameras | `readonly ViewerCameraId[]`, z. B. `['C1', 'C6']`; `[]` zeigt den Leerzustand |
 | `exteriorCameras`, `interiorCameras` | jeweiliger Katalog | Veraltete separate Kamera-Arrays; nicht mit `cameras` kombinieren |
 | `quality` | `FHD` | CIGS-Qualitaet der dargestellten Bilder und Preloads |
@@ -248,7 +280,7 @@ Bildladefehler sind sichtbar, werden gemeldet und koennen erneut versucht werden
 
 ```tsx
 <CigsViewer
-  baseUrl="https://cigs.elferplatz.com"
+  baseUrl="https://cdn.cigs.elferplatz.com"
   configuration={{ B: '01', M: '01', P: '070707', PMV: '100' }}
   cameras={['C1', 'C2', 'C6']}
   showThumbnails
@@ -325,7 +357,7 @@ const classNames = {
 } satisfies ViewerClassNames;
 
 <CigsViewer
-  baseUrl="https://cigs.elferplatz.com"
+  baseUrl="https://cdn.cigs.elferplatz.com"
   configuration={{ B: '01', M: '01', P: '070707', PMV: '100' }}
   cameras={['C1', 'C2', 'C6']}
   showThumbnails
@@ -367,7 +399,7 @@ import {
 } from 'cigs-viewer';
 
 <CigsViewer
-  baseUrl="https://cigs.elferplatz.com"
+  baseUrl="https://cdn.cigs.elferplatz.com"
   configuration={{ B: '01', M: '01', P: '070707', PMV: '100' }}
   cameras={['C1', 'C2', 'C6']}
   showThumbnails
@@ -508,6 +540,13 @@ registrieren. Neu sind unter anderem die gemeinsame `cameras`-Auswahl,
 konfigurierbarer Zoom mit gezieltem 4K-Nachladen und weiche
 Konfigurationsuebergaenge.
 
+Ab der naechsten Version werden Bildpfade nicht mehr im Klartext gebaut,
+sondern gemaess der CIGS-Frontend-Hashing-Regel gehasht (siehe
+[So werden die Pfade gebaut](#so-werden-die-pfade-gebaut)). Host-Apps, die
+bisher Klartext-URLs geparst oder erwartet haben, muessen darauf verzichten;
+die neue optionale Prop `baureihe` erlaubt einen expliziten Override, falls
+`configuration.B` fehlt oder abweicht.
+
 ## Entwicklung und lokale Installation
 
 ### Quellcode-Struktur
@@ -564,7 +603,7 @@ Der Vite-Resolver dedupliziert React fuer die lokale Paketverknuepfung.
 - Links steht ausschliesslich die wiederverwendbare Viewer-Komponente. Das
   JSX-Beispiel darunter enthaelt die aktuelle `cameras`-Liste und Optionen,
   ergaenzt um Einzelkamera-Beispiele.
-- Feste Bildquelle **https://cigs.elferplatz.com**, ohne URL-Eingabe oder lokale
+- Feste Bildquelle **https://cdn.cigs.elferplatz.com**, ohne URL-Eingabe oder lokale
   Mock-Bilder. Die Demo benoetigt eine Verbindung zum Render-Service und sendet
   die angewendeten Konfigurationscodes als Bildpfade an diesen Host.
 - Die Paket-Filter fuer Exterieur/Interieur bleiben aktiv. Konfigurationen,
