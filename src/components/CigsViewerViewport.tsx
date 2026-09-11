@@ -33,6 +33,8 @@ export const CigsViewerViewport = forwardRef<
     onImageError,
     frame,
     zoomScope,
+    fullscreenScope,
+    fullscreenZoomScope,
     loading,
     handlers,
     selectFrame,
@@ -186,6 +188,49 @@ export const CigsViewerViewport = forwardRef<
                 active={
                   enableZoom &&
                   scale > 1 &&
+                  !fullscreen.active &&
+                  !motion.active &&
+                  loading.enabled &&
+                  loading.loadedSources.has(frame.src)
+                }
+                labels={labels}
+                onImageError={onImageError}
+              />
+            )}
+            {frame?.fullscreenSrc && frame.fullscreenSrc !== frame.src && (
+              <ZoomFrameImage
+                key={fullscreenScope}
+                src={frame.fullscreenSrc}
+                change={{ frameIndex, frame }}
+                slotClass='civ__fullscreen-quality'
+                active={
+                  // Stays active while zoomed too (not just at scale === 1):
+                  // `fullscreenZoomQuality` defaults to the same value as
+                  // `fullscreenQuality`, in which case `fullscreenZoomSrc` is
+                  // never fetched (see `handleFullscreenZoomRequest`) and this
+                  // is the only overlay carrying fullscreen quality - hiding
+                  // it while zoomed would drop back to the low-resolution
+                  // base image. When a distinct `fullscreenZoomSrc` does load,
+                  // it renders on top of this layer once ready (see below).
+                  fullscreen.active &&
+                  !motion.active &&
+                  loading.enabled &&
+                  loading.loadedSources.has(frame.src)
+                }
+                labels={labels}
+                onImageError={onImageError}
+              />
+            )}
+            {frame?.fullscreenZoomSrc && frame.fullscreenZoomSrc !== frame.src && (
+              <ZoomFrameImage
+                key={fullscreenZoomScope}
+                src={frame.fullscreenZoomSrc}
+                change={{ frameIndex, frame }}
+                slotClass='civ__fullscreen-zoom-quality'
+                active={
+                  enableZoom &&
+                  fullscreen.active &&
+                  scale > 1 &&
                   !motion.active &&
                   loading.enabled &&
                   loading.loadedSources.has(frame.src)
@@ -197,7 +242,7 @@ export const CigsViewerViewport = forwardRef<
           </SlideTrack>
         </div>
       </div>
-      {fullscreen.active && (
+      {fullscreen.active && enableZoom && (
         <p
           className={slotClasses(
             'civ__controls-agenda',

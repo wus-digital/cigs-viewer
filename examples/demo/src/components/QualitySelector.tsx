@@ -4,16 +4,21 @@ import { focusStyles } from '../utilities.js';
 interface Props {
   value: RenderQuality;
   onChange: (value: RenderQuality) => void;
+  label?: string;
 }
 
 function isRenderQuality(value: string): value is RenderQuality {
   return RENDER_QUALITIES.some((quality) => quality === value);
 }
 
-export function QualitySelector({ value, onChange }: Props) {
+export function QualitySelector({
+  value,
+  onChange,
+  label = 'Bildqualitaet',
+}: Props) {
   return (
     <label className='mb-6 block text-sm font-semibold'>
-      Bildqualitaet
+      {label}
       <select
         className={`mt-2 block w-full rounded-md border border-[#9caabd] bg-white p-2.5 ${focusStyles}`}
         value={value}

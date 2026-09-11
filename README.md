@@ -216,6 +216,20 @@ Alternativ ist `frameIndex` als nullbasierter kontrollierter Index verfuegbar.
 der Viewer den Index selbst. Bei veraenderlichen Kameralisten muss die
 Host-App kontrollierte Kamera-IDs ebenfalls aktualisieren.
 
+Soll lediglich die anfaenglich vorselektierte Kamera geaendert werden, ohne
+die Auswahl danach zu kontrollieren, reicht `defaultCamera`:
+
+```tsx
+<CigsViewer {...props} defaultCamera='C6' />
+```
+
+`defaultCamera` legt nur die Kamera fest, die beim Mounten der Komponente
+gezeigt wird - danach verwaltet der Viewer den Index wieder selbst (wie bei
+`defaultFrameIndex`). **Nicht gleichzeitig mit `defaultFrameIndex` verwenden.**
+Explizit angegeben muss die ID in der `cameras`-Auswahl existieren. Ohne
+Angabe wird automatisch `'C2'` vorselektiert, oder die erste Kamera aus
+`cameras`, falls `'C2'` nicht Teil der Auswahl ist.
+
 ## API
 
 | Prop | Default | Bedeutung |
@@ -225,8 +239,12 @@ Host-App kontrollierte Kamera-IDs ebenfalls aktualisieren.
 | `cameras` | alle System-Kameras | `readonly ViewerCameraId[]`, z. B. `['C1', 'C6']`; `[]` zeigt den Leerzustand |
 | `quality` | `FHD` | CIGS-Qualitaet der dargestellten Bilder und Preloads |
 | `thumbnailQuality` | - | Optionale Thumbnail-Qualitaet; ebenfalls per `/generate` aufgeloest |
+| `fullscreenQuality` | `4K` | Qualitaet, die einmalig nachgeladen wird, sobald der Vollbildmodus aktiviert wird, und `quality` fuer die Dauer des Vollbilds ersetzt |
+| `zoomQuality` | `4K`* | Qualitaet, die beim Mausrad-Zoom ausserhalb des Vollbilds nachgeladen wird; *bleibt bei `quality` in `4K`/`8K` |
+| `fullscreenZoomQuality` | `4K`* | Qualitaet, die beim Mausrad-Zoom waehrend des Vollbilds nachgeladen wird und `fullscreenQuality` dafuer ersetzt; *bleibt bei `fullscreenQuality` in `4K`/`8K` |
 | `cameraId` | intern | Kontrollierte Kamera-ID |
 | `frameIndex` / `defaultFrameIndex` | intern / `0` | Kontrollierter bzw. initialer nullbasierter Index |
+| `defaultCamera` | `'C2'` / erste Kamera | Initial vorselektierte Kamera-ID (unkontrolliert); ohne Angabe `'C2'`, sonst die erste Kamera aus `cameras`; nicht zusammen mit `defaultFrameIndex` verwenden |
 | `onFrameChange` | - | `({ frameIndex, frame }) => void`; `frame` enthaelt `cameraId`, `src`, optional `alt`, `thumbnailSrc` |
 | `onImageError` | - | `(error, change) => void` fuer das angezeigte Bild |
 | `onGenerateError` | - | `(error) => void`, wenn ein `POST /generate`-Aufruf fehlschlaegt |
@@ -234,12 +252,15 @@ Host-App kontrollierte Kamera-IDs ebenfalls aktualisieren.
 | `dragMode` | `'slide'` | Echter Bild-Slider; `'sequence'` aktiviert das bisherige kontinuierliche Durchschalten |
 | `pixelsPerFrame` | `24` | Positive ganzzahlige Drag-Distanz in CSS-Pixeln, nur fuer `dragMode='sequence'` |
 | `preloadRadius` | `'all'` | Gesamte Kameraliste in Nachbarpaaren; alternativ 0-4 Nachbarbilder pro Richtung |
-| `showThumbnails` | `false` | Kamera-Thumbnails bei mehreren Kameras; ohne `thumbnailQuality` werden geladene Hauptbilder wiederverwendet |
+| `showThumbnails` | `true` | Kamera-Thumbnails ausserhalb des Vollbilds bei mehreren Kameras; ohne `thumbnailQuality` werden geladene Hauptbilder wiederverwendet |
+| `fullscreenShowThumbnails` | wie `showThumbnails` | Kamera-Thumbnails waehrend des Vollbilds, unabhaengig von `showThumbnails` |
 | `allowFullscreen` | `true` | Blendet den Fullscreen-Button im Default-Layout aus (`false`), wenn kein Vollbild gewuenscht ist |
 | `actions` | - | `readonly ViewerAction[]` fuer eigene Buttons im Default-Layout, in derselben Zeile wie Thumbnails und Fullscreen-Button; wird bei eigenem `children`-Layout ignoriert |
 | `fullscreenIcon` | - | Eigenes Icon fuer den Fullscreen-Button, damit er optisch zu eigenen `actions` passt |
-| `enableZoom` | `false` | Mausrad-Zoom mit gezieltem 4K-Nachladen; Ziehen verschiebt den Ausschnitt |
-| `maxZoom` | `4` | Maximale Zoomstufe als Zahl groesser/gleich 1 |
+| `enableZoom` | `false` | Mausrad-Zoom ausserhalb des Vollbilds mit gezieltem Nachladen (`zoomQuality`); Ziehen verschiebt den Ausschnitt |
+| `enableFullscreenZoom` | `true` | Mausrad-Zoom waehrend des Vollbilds (unabhaengig von `enableZoom`), mit gezieltem Nachladen (`fullscreenZoomQuality`) |
+| `maxZoom` | `4` | Maximale Zoomstufe ausserhalb des Vollbilds als Zahl groesser/gleich 1 |
+| `fullscreenMaxZoom` | wie `maxZoom` | Maximale Zoomstufe waehrend des Vollbilds, unabhaengig von `maxZoom` |
 | `labels` | Englisch | Teilmenge von `ViewerLabels`, inklusive Lade-, Fehler-, Retry- und Anleitungstexten |
 | `className`, `style` | - | Gestaltung des Containers |
 | `classNames` | - | Typisierte Tailwind-Overrides fuer einzelne UI-Bestandteile, siehe unten |
@@ -288,7 +309,8 @@ dauern 600 ms mit sanftem Anlauf und anschliessender Beschleunigung. Das
 Einrasten nach einem echten Swipe bleibt bei 220 ms.
 
 `enableZoom` aktiviert das Mausrad nur ueber der Bildflaeche, nicht ueber den
-Bedienelementen. Gezoomt wird um die Mausposition, zwischen 1x und `maxZoom`.
+Bedienelementen. Gezoomt wird um die Mausposition, zwischen 1x und `maxZoom`
+(bzw. `fullscreenMaxZoom` waehrend des Vollbilds, unabhaengig konfigurierbar).
 Ab vergroesserter Darstellung verschiebt Ziehen den Ausschnitt statt Kameras
 weiterzuschalten; Pfeile, Thumbnails und Tastatur bleiben bedienbar.
 Escape oder "Reset zoom" setzen auf 1x zurueck. Kamera- und
@@ -410,6 +432,61 @@ const actions: ViewerAction[] = [
 Anordnung besteht. In einem eigenen `children`-Layout laesst sich dieselbe
 einheitliche Optik ueber die exportierte `CigsViewerActionButton`-Komponente
 erreichen, z. B. `actions.map((action) => <CigsViewerActionButton key={action.key} action={action} />)`.
+
+`fullscreenQuality` (Default `'4K'`) legt fest, welche Qualitaet automatisch
+per `POST /generate` nachgeladen wird, sobald der Vollbildmodus aktiviert
+wird -- unabhaengig davon, ob dies ueber den eingebauten Fullscreen-Button
+oder eine eigene Action ausgeloest wird. Solange der Vollbildmodus aktiv
+bleibt, ersetzt dieses nachgeladene Bild die Basis-`quality` fuer die
+jeweils angezeigte Kamera; beim Verlassen des Vollbilds wird wieder die
+Basisqualitaet angezeigt:
+
+```tsx
+<CigsViewer {...props} fullscreenQuality='4K' />
+```
+
+Ist `fullscreenQuality` identisch mit `quality`, findet kein zusaetzlicher
+Request statt, da das Basisbild die geforderte Qualitaet bereits erfuellt.
+
+`zoomQuality` und `fullscreenZoomQuality` steuern unabhaengig voneinander,
+welche Qualitaet beim Mausrad-Zoom nachgeladen wird -- `zoomQuality`
+ausserhalb, `fullscreenZoomQuality` waehrend des Vollbilds. Ohne explizite
+Angabe wird automatisch auf `4K` erhoeht, wenn die jeweilige Basisqualitaet
+(`quality` bzw. `fullscreenQuality`) `FHD` oder `WQHD` ist; bei `4K`/`8K`
+bleibt die Basisqualitaet auch beim Zoom erhalten (kein zusaetzlicher
+Request). Stimmt eine Zoom-Qualitaet mit ihrer jeweiligen Basisqualitaet
+ueberein, wird ebenfalls kein zusaetzliches Bild nachgeladen:
+
+```tsx
+<CigsViewer
+  {...props}
+  zoomQuality='8K'
+  fullscreenQuality='4K'
+  fullscreenZoomQuality='8K'
+/>
+```
+
+`enableFullscreenZoom` (Default `true`) steuert unabhaengig von `enableZoom`,
+ob Mausrad-Zoom waehrend des Vollbilds erlaubt ist. So kann Zoomen z. B. nur
+im Vollbild aktiv sein (`enableZoom={false}` mit `enableFullscreenZoom`) oder
+umgekehrt nur ausserhalb (`enableZoom` mit `enableFullscreenZoom={false}`).
+
+`fullscreenMaxZoom` und `fullscreenShowThumbnails` erlauben zusaetzlich
+eigene Regeln fuer die maximale Zoomstufe bzw. die Thumbnail-Anzeige,
+ausschliesslich waehrend des Vollbilds. Beide werden ohne explizite Angabe
+vom jeweiligen Basiswert (`maxZoom` bzw. `showThumbnails`) uebernommen -
+das bisherige Verhalten bleibt also unveraendert, bis einer der beiden Werte
+gezielt ueberschrieben wird:
+
+```tsx
+<CigsViewer
+  {...props}
+  maxZoom={4}
+  fullscreenMaxZoom={8}
+  showThumbnails={false}
+  fullscreenShowThumbnails
+/>
+```
 
 ### Eigenes Layout mit Children
 

@@ -52,10 +52,17 @@ interface ExampleOptions {
   baseUrl: string;
   configuration: RenderConfiguration;
   cameras: readonly ViewerCameraId[];
+  defaultCamera: ViewerCameraId | undefined;
   enableZoom: boolean;
+  enableFullscreenZoom: boolean;
   maxZoom: number;
+  fullscreenMaxZoom: number;
   quality: RenderQuality;
+  zoomQuality: RenderQuality;
+  fullscreenQuality: RenderQuality;
+  fullscreenZoomQuality: RenderQuality;
   showThumbnails: boolean;
+  fullscreenShowThumbnails: boolean;
   allowFullscreen: boolean;
   actionsExample: boolean;
   layout: ViewerLayout;
@@ -65,10 +72,17 @@ export function viewerExample({
   baseUrl,
   configuration,
   cameras,
+  defaultCamera,
   enableZoom,
+  enableFullscreenZoom,
   maxZoom,
+  fullscreenMaxZoom,
   quality,
+  zoomQuality,
+  fullscreenQuality,
+  fullscreenZoomQuality,
   showThumbnails,
+  fullscreenShowThumbnails,
   allowFullscreen,
   actionsExample,
   layout,
@@ -87,12 +101,22 @@ export function viewerExample({
       : `import { CigsViewer${showActions ? ', type ViewerAction' : ''} } from 'cigs-viewer';`;
   const formatted = (value: unknown) =>
     JSON.stringify(value, null, 2).replaceAll('\n', '\n  ');
+  const defaultCameraLine = `  defaultCamera=${JSON.stringify(defaultCamera ?? 'C2')}`;
   const props = `  baseUrl=${JSON.stringify(baseUrl)}
   configuration={${formatted(configuration)}}
-  cameras={${JSON.stringify(cameras)}}
-  quality=${JSON.stringify(quality)}
-  showThumbnails={${showThumbnails}}${enableZoom ? '\n  enableZoom' : ''}
-  maxZoom={${maxZoom}}${allowFullscreen ? '' : '\n  allowFullscreen={false}'}${showActions ? '\n  actions={actions}' : ''}
+  cameras={${JSON.stringify(cameras)}} // Standard: alle System-Kameras
+${defaultCameraLine} // Standard: "C2" (sonst die erste Kamera aus cameras)
+  quality=${JSON.stringify(quality)} // Standard: "FHD"
+  zoomQuality=${JSON.stringify(zoomQuality)} // Standard: "4K" (bleibt bei quality in 4K/8K)
+  fullscreenQuality=${JSON.stringify(fullscreenQuality)} // Standard: "4K"
+  fullscreenZoomQuality=${JSON.stringify(fullscreenZoomQuality)} // Standard: "4K" (bleibt bei fullscreenQuality in 4K/8K)
+  showThumbnails={${showThumbnails}} // Standard: true
+  fullscreenShowThumbnails={${fullscreenShowThumbnails}} // Standard: wie showThumbnails
+  enableZoom={${enableZoom}} // Standard: false
+  enableFullscreenZoom={${enableFullscreenZoom}} // Standard: true
+  maxZoom={${maxZoom}} // Standard: 4
+  fullscreenMaxZoom={${fullscreenMaxZoom}} // Standard: wie maxZoom
+  allowFullscreen={${allowFullscreen}} // Standard: true${showActions ? '\n  actions={actions}' : ''}
   ${layout === 'styled' ? `classNames={${formatted(styledClassNames)}}` : ''}`.trimEnd();
   const actionsBlock = showActions ? `\n${demoActionsSnippet}\n` : '';
   if (layout !== 'custom')

@@ -12,6 +12,8 @@ interface Props {
   active: boolean;
   labels: ViewerLabels;
   onImageError: ((error: Error, change: ViewerFrameChange) => void) | undefined;
+  /** Root class identifying which on-demand quality overlay this is; defaults to the zoom overlay's. */
+  slotClass?: string;
 }
 
 interface Request {
@@ -23,6 +25,7 @@ export function ZoomFrameImage({
   src,
   change,
   active,
+  slotClass = 'civ__zoom-quality',
   labels,
   onImageError,
 }: Props) {
@@ -97,7 +100,7 @@ export function ZoomFrameImage({
   if (!request) return null;
   return (
     <div
-      className='civ__zoom-quality pointer-events-none absolute inset-0 z-[3]'
+      className={`${slotClass} pointer-events-none absolute inset-0 z-[3]`}
       hidden={!active}
     >
       <img

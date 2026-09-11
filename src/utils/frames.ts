@@ -1,5 +1,31 @@
 import type { ViewerFrame } from '../types/viewer.js';
 
+/**
+ * Implicit fallback camera id applied when neither `defaultCamera` nor
+ * `defaultFrameIndex`/`cameraId`/`frameIndex` is provided.
+ */
+export const IMPLICIT_DEFAULT_CAMERA_ID = 'C2';
+
+/**
+ * Resolves the camera id that should be initially selected:
+ * - an explicit `defaultCamera` is returned as-is (existence is validated
+ *   by the caller, which should throw when it's not present).
+ * - otherwise `IMPLICIT_DEFAULT_CAMERA_ID` when present in `cameraIds`,
+ *   else the first entry of `cameraIds` (or `undefined` if empty) - so the
+ *   viewer always has a sensible initial camera without requiring callers
+ *   to specify one.
+ */
+export function resolveDefaultCameraId(
+  cameraIds: readonly (string | undefined)[],
+  defaultCamera: string | undefined
+): string | undefined {
+  if (defaultCamera !== undefined) return defaultCamera;
+  if (cameraIds.includes(IMPLICIT_DEFAULT_CAMERA_ID)) {
+    return IMPLICIT_DEFAULT_CAMERA_ID;
+  }
+  return cameraIds[0];
+}
+
 export function frameIdentity(frame: ViewerFrame, index: number): string {
   return frame.cameraId ?? String(index);
 }

@@ -34,6 +34,27 @@ export interface ViewerRenderOptions {
   /** Optional thumbnail quality, using the same configuration and camera. */
   thumbnailQuality?: RenderQuality;
   /**
+   * Quality requested on demand once the user wheel-zooms in outside
+   * fullscreen. Defaults to `4K` when `quality` is `FHD`/`WQHD`, otherwise
+   * the same as `quality` (the base image is already high-res enough).
+   */
+  zoomQuality?: RenderQuality;
+  /**
+   * Quality requested on demand once fullscreen is entered, replacing the
+   * base `quality` image for whichever camera is shown while fullscreen
+   * stays active (including cameras swiped to afterwards). Defaults to
+   * `4K`.
+   */
+  fullscreenQuality?: RenderQuality;
+  /**
+   * Quality requested on demand once the user wheel-zooms in while
+   * fullscreen is active, replacing `zoomQuality` for the duration.
+   * Defaults to `4K` when `fullscreenQuality` is `FHD`/`WQHD`, otherwise
+   * the same as `fullscreenQuality` - so by default it reuses the
+   * already-fetched fullscreen image instead of triggering another request.
+   */
+  fullscreenZoomQuality?: RenderQuality;
+  /**
    * Called when a `POST /generate` call fails. The viewer keeps showing
    * previously resolved frames (if any) when this happens.
    */
@@ -47,6 +68,10 @@ export interface ViewerFrame {
   thumbnailSrc?: string;
   /** On-demand high-resolution source for this frame; never a thumbnail or neighbor preload. */
   zoomSrc?: string;
+  /** On-demand `fullscreenQuality` source for this frame, resolved once fullscreen is entered. */
+  fullscreenSrc?: string;
+  /** On-demand `fullscreenZoomQuality` source for this frame, resolved once zooming while fullscreen. */
+  fullscreenZoomSrc?: string;
   /**
    * True while a new generated image URL is being requested for this frame.
    * During this phase `src` may still point at the last successfully loaded image.
@@ -117,6 +142,15 @@ interface ViewerControlsProps {
   /** Controlled camera ID; use instead of frameIndex. */
   cameraId?: string;
   defaultFrameIndex?: number;
+  /**
+   * Camera ID pre-selected on mount, resolved against `frames` once it
+   * loads. Uncontrolled - like `defaultFrameIndex`, it only sets the
+   * initial frame and afterwards the viewer manages its own index; use
+   * `cameraId` instead for controlled camera selection. Not combinable
+   * with `defaultFrameIndex`. Defaults to `'C2'`, falling back to the
+   * first entry in `cameras` when `'C2'` isn't present.
+   */
+  defaultCamera?: string;
   onFrameChange?: (change: ViewerFrameChange) => void;
   onImageError?: (error: Error, change: ViewerFrameChange) => void;
   loop?: boolean;
@@ -126,7 +160,18 @@ interface ViewerControlsProps {
   pixelsPerFrame?: number;
   /** Paired preload distance per direction: all frames by default, or 0-4. */
   preloadRadius?: number | 'all';
+  /**
+   * Shows thumbnails outside fullscreen. Defaults to `true`.
+   * `fullscreenShowThumbnails` controls this independently while
+   * fullscreen is active.
+   */
   showThumbnails?: boolean;
+  /**
+   * Shows thumbnails while fullscreen is active, independent of
+   * `showThumbnails`. Defaults to the same value as `showThumbnails` when
+   * omitted, preserving the previous single-flag behavior.
+   */
+  fullscreenShowThumbnails?: boolean;
   /**
    * Enables the native fullscreen toggle. Defaults to `true`. When `false`,
    * the default layout hides the fullscreen button entirely and
@@ -149,10 +194,23 @@ interface ViewerControlsProps {
    * compose a custom layout with `CigsViewerActionButton` instead.
    */
   actions?: readonly ViewerAction[];
-  /** Enable wheel zoom and drag-to-pan. Disabled by default. */
+  /** Enable wheel zoom and drag-to-pan outside fullscreen. Disabled by default. */
   enableZoom?: boolean;
-  /** Maximum wheel zoom scale. Defaults to 4. */
+  /**
+   * Enable wheel zoom and drag-to-pan while fullscreen is active,
+   * independent of `enableZoom`. Defaults to `true`, so fullscreen allows
+   * zooming even when `enableZoom` is `false`; set to `false` to disable
+   * zooming while fullscreen too.
+   */
+  enableFullscreenZoom?: boolean;
+  /** Maximum wheel zoom scale outside fullscreen. Defaults to 4. */
   maxZoom?: number;
+  /**
+   * Maximum wheel zoom scale while fullscreen is active, independent of
+   * `maxZoom`. Defaults to the same value as `maxZoom` when omitted,
+   * preserving the previous single-limit behavior.
+   */
+  fullscreenMaxZoom?: number;
   labels?: Partial<ViewerLabels>;
   /** Slot utilities override the default theme using tailwind-merge. */
   classNames?: ViewerClassNames;
@@ -174,4 +232,20 @@ export interface ImageFrameViewerProps extends ViewerControlsProps {
    * zoom-quality image on demand instead of upfront for every camera.
    */
   onZoomRequest?: (change: ViewerFrameChange) => void;
+  /**
+   * Called when the viewer needs `fullscreenSrc` for the currently shown
+   * frame - i.e. once fullscreen is entered (or the shown camera changes
+   * while it stays active) and it isn't resolved yet. Internal to
+   * `CigsViewer`, which uses it to fetch the fullscreen-quality image on
+   * demand instead of upfront for every camera.
+   */
+  onFullscreenRequest?: (change: ViewerFrameChange) => void;
+  /**
+   * Called when the viewer needs `fullscreenZoomSrc` for the currently
+   * shown frame - i.e. once the user wheel-zooms into it while fullscreen
+   * is active and it isn't resolved yet. Internal to `CigsViewer`, which
+   * uses it to fetch the fullscreen-zoom-quality image on demand instead
+   * of upfront for every camera.
+   */
+  onFullscreenZoomRequest?: (change: ViewerFrameChange) => void;
 }

@@ -89,6 +89,10 @@ export interface ViewerFramesConfig {
   quality: RenderQuality;
   /** Quality requested for `zoomSrc`: `4K` for `FHD`/`WQHD`, otherwise the same as `quality`. */
   zoomQuality: RenderQuality;
+  /** Quality requested for `fullscreenSrc`, once fullscreen is entered. Defaults to `4K`. */
+  fullscreenQuality: RenderQuality;
+  /** Quality requested for `fullscreenZoomSrc`, once zooming while fullscreen is active. */
+  fullscreenZoomQuality: RenderQuality;
   thumbnailQuality?: RenderQuality;
   cameras: readonly ViewerCamera[];
   configuration: Readonly<Record<string, string>>;
@@ -109,13 +113,20 @@ export function buildViewerFrameConfig(
     baseUrl,
     quality = 'FHD',
     thumbnailQuality,
+    zoomQuality,
+    fullscreenQuality = '4K',
+    fullscreenZoomQuality,
   } = options;
   const cameras = resolveCameras(options);
   const base = normalizeBaseUrl(baseUrl);
   if (
     !RENDER_QUALITIES.includes(quality) ||
     (thumbnailQuality !== undefined &&
-      !RENDER_QUALITIES.includes(thumbnailQuality))
+      !RENDER_QUALITIES.includes(thumbnailQuality)) ||
+    (zoomQuality !== undefined && !RENDER_QUALITIES.includes(zoomQuality)) ||
+    !RENDER_QUALITIES.includes(fullscreenQuality) ||
+    (fullscreenZoomQuality !== undefined &&
+      !RENDER_QUALITIES.includes(fullscreenZoomQuality))
   ) {
     throw new TypeError('Unsupported render quality.');
   }
@@ -130,7 +141,15 @@ export function buildViewerFrameConfig(
   return {
     baseUrl: base,
     quality,
-    zoomQuality: quality === 'FHD' || quality === 'WQHD' ? '4K' : quality,
+    zoomQuality:
+      zoomQuality ??
+      (quality === 'FHD' || quality === 'WQHD' ? '4K' : quality),
+    fullscreenQuality,
+    fullscreenZoomQuality:
+      fullscreenZoomQuality ??
+      (fullscreenQuality === 'FHD' || fullscreenQuality === 'WQHD'
+        ? '4K'
+        : fullscreenQuality),
     ...(thumbnailQuality === undefined ? {} : { thumbnailQuality }),
     cameras,
     configuration: Object.fromEntries(entries),
